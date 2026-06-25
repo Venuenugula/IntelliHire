@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
     gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    llm_provider: str = "gemini"
+    openai_model: str = "gpt-4o-mini"
+    pii_policy: str = "mask_external"
     upload_dir: str = "./uploads"
     cors_origins: list[str] = ["http://localhost:3000"]
 

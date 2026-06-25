@@ -29,7 +29,8 @@ async def create_job(payload: JobCreate, db: AsyncSession = Depends(get_db)):
         job_id=job.id,
         title=job.title,
         description=job.description,
-        role_blueprint=role_blueprint,
+        role_blueprint=role_blueprint.model_dump(mode="json"),
+        document_id=job.document_id,
         created_at=job.created_at,
     )
 
@@ -44,5 +45,6 @@ async def get_job(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         title=job.title,
         description=job.description,
         role_blueprint=job.role_blueprint,
+        document_id=job.document_id,
         created_at=job.created_at,
     )
