@@ -342,15 +342,154 @@ python-docx      # DOCX extraction
 
 ---
 
-## Open items for team sync
+## Locked decisions (final)
 
-1. **PII handling** — redact before LLM or flag only? (GDPR / compliance)
-2. **Draft session storage** — Redis TTL vs DB `document_artifacts` before approve?
-3. **Frontend review screen** — inline edit blueprint JSON or form fields per section?
-4. **Minimum confidence threshold** — block save if critical fields below 0.5?
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **PII** | Detect → Minimize → Configurable Redaction | Preserve context; mask for external LLM only |
+| **Draft storage** | Postgres `document_artifacts` + object storage | Drafts are business data, not cache |
+| **Review UI** | Structured forms + source highlighting | Recruiters are not developers |
+| **Confidence** | Soft gate, field-level | Never block entire save |
+
+---
+
+## PII pipeline
+
+```text
+PDF/DOCX → Extract → PII Detection → Policy Engine
+                                          │
+                    ┌─────────────────────┴─────────────────────┐
+                    ▼                                           ▼
+            Internal model                               External model (Gemini)
+            Send original                                Send masked text
+```
+
+**Mask tokens:** `<EMAIL>`, `<PHONE>`, `<CANDIDATE_NAME>`  
+**Never overwrite:** store both `original_text` and `masked_text` on `Document`.
+
+**Policy env:** `PII_POLICY=detect_only|mask_external|mask_always` (default: `mask_external`)
+
+---
+
+## Artifact storage
+
+**Postgres table:** `document_artifacts`
+
+| Column | Type |
+|--------|------|
+| `id` | UUID |
+| `document_id` | UUID |
+| `artifact_type` | enum string |
+| `artifact_version` | int |
+| `status` | draft \| pending_review \| approved \| superseded |
+| `payload` | JSONB |
+| `storage_uri` | text (for RAW_DOCUMENT) |
+| `created_by` | string |
+| `created_at` | timestamp |
+| `approved_at` | timestamp |
+
+**Artifact types:** `RAW_DOCUMENT`, `EXTRACTED_TEXT`, `CLEAN_TEXT`, `MASKED_TEXT`, `BLUEPRINT_DRAFT`, `BLUEPRINT_EDITED`, `BLUEPRINT_APPROVED`, `PROFILE_DRAFT`, `PROFILE_EDITED`, `PROFILE_APPROVED`, `HUMAN_FEEDBACK`, `BLUEPRINT_DIFF`
+
+**Binary files:** MinIO/S3 (`OBJECT_STORAGE_BACKEND=local|s3|minio`). Postgres stores pointer only.
+
+---
+
+## Review UI specification (Member 3)
+
+Structured forms — **not JSON editing.**
+
+```
+Role Title          [ Senior Backend Engineer ]     🟢 92%  [View Source]
+Required Skills     ☑ Python  ☑ FastAPI  ☐ K8s     🟡 78%  [View Source]
+Experience          [ 5-8 years ]                   🟢 96%  [View Source]
+```
+
+**View Source** → highlights sentence in JD (ChatGPT-style citation).
+
+**Internal model:** `SourceSpan` — `page`, `paragraph`, `start_char`, `end_char`
+
+---
+
+## Confidence gates (soft)
+
+| Level | Range | UX |
+|-------|-------|-----|
+| 🟢 GREEN | > 0.85 | Save |
+| 🟡 YELLOW | 0.60–0.85 | Warn |
+| 🔴 RED | < 0.60 | Require confirmation **on critical fields only** |
+
+**Critical blueprint fields:** `role_title`, `required_skills`, `experience_level`, `employment_type`  
+**Non-critical:** `preferred_skills`, `certifications` — low confidence OK
+
+---
+
+## Human Feedback Engine
+
+Every recruiter edit → `HUMAN_FEEDBACK` artifact:
+
+```json
+{
+  "field": "required_skills",
+  "ai_value": "React",
+  "human_value": "Next.js",
+  "reason": "manual_edit"
+}
+```
+
+Builds fine-tuning dataset over time.
+
+---
+
+## Document Quality Score
+
+Scored **before** LLM extraction. Components: OCR quality, formatting, missing sections, image-only pages, duplicate text, broken encoding, tables.
+
+If score **< 40** → recommend manual review or OCR before blueprint generation.
+
+---
+
+## Extraction Provenance
+
+Every field retains:
+
+```json
+{
+  "field": "experience_level",
+  "value": "Senior",
+  "confidence": 0.96,
+  "source_span": { "page": 3, "start_char": 412, "end_char": 427, "text": "5+ years..." },
+  "provenance": { "model": "gemini-2.0-flash", "prompt_version": "v1" }
+}
+```
+
+---
+
+## Blueprint Diff
+
+When JD revised months later → semantic diff, not full regeneration:
+
+```
++ Kubernetes    + Rust    - Java
+experience: 5 years → 7 years
+```
+
+Enables incremental ranking updates vs full recompute.
+
+---
+
+## Phase 1 implementation order
+
+1. Document artifact storage (Postgres + object storage) ✅ scaffolded
+2. PII detection and masking pipeline ✅ scaffolded
+3. Section detection with source spans
+4. Document quality scoring ✅ scaffolded
+5. Field confidence + provenance metadata ✅ schema
+6. Review UI (structured forms + source highlighting)
+7. Recruiter feedback capture ✅ scaffolded
+8. Blueprint diff engine ✅ scaffolded
 
 ---
 
 ## Conclusion
 
-This branch establishes the **Document Intelligence Platform** foundation. Implementation proceeds phase-by-phase on top of shared `Document`, `ExtractedField`, `LLMProvider`, and full `RoleBlueprint` / `CandidateProfile` schemas — not isolated parsers.
+All architectural decisions are **locked**. Implementation proceeds on `feat/jd-intelligence` and `feat/resume-intelligence` branches forked from `feat/document-understanding-engines`.

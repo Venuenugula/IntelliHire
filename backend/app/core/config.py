@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     linkedin_data_provider: str = "auto"
     linkedin_session_cookie: str = ""
 
+    # Document intelligence
+    pii_policy: str = "mask_external"  # detect_only | mask_external | mask_always
+    object_storage_backend: str = "local"  # local | s3 | minio
+    object_storage_bucket: str = "delulu-documents"
+    object_storage_endpoint: str = ""
+    object_storage_access_key: str = ""
+    object_storage_secret_key: str = ""
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

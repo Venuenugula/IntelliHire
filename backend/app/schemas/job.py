@@ -14,6 +14,7 @@ from app.schemas.fields import ExtractedField, SkillField, VersioningMeta
 class RoleBlueprint(BaseModel):
     role_title: ExtractedField[str]
     experience_level: ExtractedField[str]  # junior | mid | senior | lead
+    employment_type: ExtractedField[str] | None = None  # full-time | contract | remote
     required_skills: list[SkillField] = Field(default_factory=list)
     preferred_skills: list[SkillField] = Field(default_factory=list)
     responsibilities: list[ExtractedField[str]] = Field(default_factory=list)

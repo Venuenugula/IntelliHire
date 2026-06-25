@@ -192,15 +192,35 @@ Content-Type: multipart/form-data
 }
 ```
 
-### SkillField shape
+### Confidence gate (soft)
+
+Critical fields with RED confidence require explicit `confirmations` map:
 
 ```json
+POST /jobs
 {
-  "name": "Tensor Flow",
-  "normalized_name": "TensorFlow",
-  "confidence": 0.99,
-  "source": "Required: Tensor Flow, PyTorch",
-  "category": "technical"
+  "title": "...",
+  "description": "...",
+  "blueprint": { ... },
+  "confirmations": { "experience_level": true }
 }
 ```
+
+Non-critical low-confidence fields (e.g. preferred certifications at 0.41) do not block save.
+
+### Human feedback (on recruiter edit)
+
+Stored as `HUMAN_FEEDBACK` artifact when recruiter changes AI value:
+
+```json
+{ "field": "required_skills", "ai_value": "React", "human_value": "Next.js", "reason": "manual_edit" }
+```
+
+### Document quality (in upload response)
+
+```json
+"quality": { "score": 87, "recommend_manual_review": false }
+```
+
+If `score < 40`, UI should prompt OCR or manual review before blueprint generation.
 

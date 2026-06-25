@@ -21,6 +21,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     from app.models import (  # noqa: F401
         candidate,
+        document_artifact,
         evidence,
         job,
         ranking,
