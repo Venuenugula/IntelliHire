@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, status
 
 from app.api.v2.schemas import ERROR_RESPONSES, RankCandidatesRequest
-from app.runtime.deps import get_ranking_engine
+from app.runtime.deps import get_deterministic_ranking_engine
 from app.shared.constants import DEFAULT_RETRIEVAL_TOP_K, SUBMISSION_SIZE
 from app.shared.enums import RankingStage
 from app.shared.interfaces import RankingEngine
@@ -21,7 +21,8 @@ router = APIRouter(prefix="/ranking", tags=["v2: ranking"])
     responses=ERROR_RESPONSES,
     summary="Rank candidates (retrieval or rerank)",
     description=(
-        "Two-stage ranker backed by the deterministic BaselineRankingEngine. "
+        "Two-stage ranker backed by the DeterministicRankingEngine (temporary "
+        "ranking infrastructure; see docs/ranking-roadmap.md). "
         "RETRIEVAL returns an order-preserving shortlist of the candidate pool; "
         "RERANK orders the shortlist from HiringDecisions (the submitted rows). "
         "The server assigns ranked_list_id and per-row ranking_ids."
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/ranking", tags=["v2: ranking"])
 )
 async def rank_candidates(
     payload: RankCandidatesRequest,
-    engine: RankingEngine = Depends(get_ranking_engine),
+    engine: RankingEngine = Depends(get_deterministic_ranking_engine),
 ) -> RankedList:
     # The request validator guarantees the per-stage inputs are present.
     if payload.stage == RankingStage.RETRIEVAL:

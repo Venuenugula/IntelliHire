@@ -23,7 +23,7 @@ Candidate raw sources ─► EvidenceProvider ─► GraphBuilder ─► FusionE
 ```
 
 Owned modules (this layer): **Role DNA**, **PipelineRuntime**, stage adapters,
-**CandidateEvaluationPipeline**, **RankingOrchestrator**, **BaselineRankingEngine**,
+**CandidateEvaluationPipeline**, **RankingOrchestrator**, **DeterministicRankingEngine**,
 **deps**, and the **API wiring** of `/v2/role-dna/generate` and `/v2/ranking/rank`.
 
 Injected (other developers, via frozen Protocols): `EvidenceProvider`,
@@ -43,7 +43,7 @@ future production `RankingEngine`.
 | Stage adapters | `app/runtime/stages.py` | `EvidenceStage`, `GraphStage`, `FusionStage`, `ReasoningStage`, `DecisionStage` — glue over the interfaces. |
 | `CandidateEvaluationPipeline` | `app/runtime/candidate_evaluation_pipeline.py` | Per-candidate chain → `HiringDecision`. |
 | `RankingOrchestrator` | `app/runtime/ranking_orchestrator.py` | Batch: evaluate each candidate → rerank. |
-| `BaselineRankingEngine` | `app/runtime/ranking_engine.py` | Deterministic-only `RankingEngine` (runtime infra). |
+| `DeterministicRankingEngine` | `app/runtime/deterministic_ranking_engine.py` | Deterministic-only `RankingEngine` (runtime infra). |
 | `deps` | `app/runtime/deps.py` | FastAPI providers — the single swap-point for real engines. |
 
 ---
@@ -78,7 +78,7 @@ time in `ctx.telemetry["total_ms"]`.
 - **RoleDNA Option A** — `leadership_expectation`, `success_profile`,
   `interview_focus`, `risk_tolerance` live in `RoleDNA.metadata`. The shared
   `RoleDNA` contract is **unchanged**.
-- **BaselineRankingEngine (Decision 2)** — deterministic only. `rerank()` sorts
+- **DeterministicRankingEngine (Decision 2)** — deterministic only. `rerank()` sorts
   `HiringDecision.derived_score`; `retrieve()` is an order-preserving shortlist
   (positional placeholder score, **not** a quality score). No LLM/AI/heuristics/
   learning/optimization.
@@ -111,7 +111,7 @@ CandidateEvaluationPipeline(
 Until then, the deterministic test doubles in `tests/mocks/` exercise the full
 chain. The API today serves:
 - `POST /v2/role-dna/generate` → real `BlueprintRoleDNAProvider` (ready now).
-- `POST /v2/ranking/rank` → `BaselineRankingEngine` (`RETRIEVAL` shortlist /
+- `POST /v2/ranking/rank` → `DeterministicRankingEngine` (`RETRIEVAL` shortlist /
   `RERANK` of supplied `HiringDecision[]`).
 
 The full candidate→decision API path goes live the moment the five engines are
@@ -140,7 +140,7 @@ markers, no `conftest`).
 | Role DNA deterministically enriches RoleBlueprint | `BlueprintRoleDNAProvider` + `inference.py`; `test_role_dna_provider.py` |
 | Runtime executes all stages through interfaces | `PipelineRuntime` + `stages.py`; `test_pipeline_runtime.py` |
 | CandidateEvaluationPipeline → HiringDecision | `candidate_evaluation_pipeline.py`; `test_candidate_evaluation_pipeline.py` |
-| RankingOrchestrator → RankedList via BaselineRankingEngine | `ranking_orchestrator.py` + `ranking_engine.py` |
+| RankingOrchestrator → RankedList via DeterministicRankingEngine | `ranking_orchestrator.py` + `deterministic_ranking_engine.py` |
 | API routes wired | `routes/role_dna.py`, `routes/ranking.py`, `deps.py` |
 | Tests pass | 19 orchestration + 48 total |
 | No shared contracts changed | `git diff` on `app/shared/` is empty |

@@ -4,6 +4,18 @@ Each adapter is pure orchestration glue: pull inputs off the PipelineContext, ca
 the injected interface implementation, store the result back on the context. There
 is deliberately NO evidence/graph/reasoning/decision logic here — that belongs to
 the other developers' engine implementations.
+
+ARCHITECTURE TODO (do not refactor now — prepare only):
+As the number of stages grows (validation, audit, metrics, cache, ...), split this
+single module into a ``runtime/stages/`` package, one file per stage::
+
+    runtime/stages/
+        evidence_stage.py    graph_stage.py       fusion_stage.py
+        reasoning_stage.py   decision_stage.py    validation_stage.py
+        audit_stage.py       metrics_stage.py     cache_stage.py
+
+Keep the public import surface (``from app.runtime import ...``) unchanged when
+doing so, so no upstream code is affected.
 """
 
 from __future__ import annotations

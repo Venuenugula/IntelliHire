@@ -7,7 +7,7 @@ from app.runtime.candidate_evaluation_pipeline import (
     PipelineError,
 )
 from app.runtime.pipeline_runtime import PipelineRuntime, StageError
-from app.runtime.ranking_engine import BaselineRankingEngine
+from app.runtime.deterministic_ranking_engine import DeterministicRankingEngine
 from app.runtime.ranking_orchestrator import RankingOrchestrator
 from app.runtime.stage import Stage, StageInputError
 from app.runtime.stages import (
@@ -34,5 +34,5 @@ __all__ = [
     "CandidateEvaluationPipeline",
     "PipelineError",
     "RankingOrchestrator",
-    "BaselineRankingEngine",
+    "DeterministicRankingEngine",
 ]

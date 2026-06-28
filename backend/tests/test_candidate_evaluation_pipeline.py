@@ -5,7 +5,7 @@ developers' modules:
 
     RoleBlueprint -> RoleDNA -> PipelineRuntime
     -> (Evidence -> Graph -> Fusion -> Reasoning -> Decision) -> HiringDecision
-    -> RankingOrchestrator + BaselineRankingEngine -> RankedList
+    -> RankingOrchestrator + DeterministicRankingEngine -> RankedList
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from mocks import (
 
 from app.intelligence.role_dna import BlueprintRoleDNAProvider
 from app.runtime import (
-    BaselineRankingEngine,
+    DeterministicRankingEngine,
     CandidateEvaluationPipeline,
     PipelineError,
     RankingOrchestrator,
@@ -89,7 +89,7 @@ def test_end_to_end_blueprint_to_ranking():
     role = _role()
     assert isinstance(role, RoleDNA) and role.must_have_skills == ["python", "fastapi"]
 
-    orch = RankingOrchestrator(evaluation_pipeline=_pipeline(), ranking_engine=BaselineRankingEngine())
+    orch = RankingOrchestrator(evaluation_pipeline=_pipeline(), ranking_engine=DeterministicRankingEngine())
     candidates = [
         {"candidate_id": "strong", "raw_sources": {"github": {"skills": ["python", "fastapi", "sql"]}}},
         {"candidate_id": "weak", "raw_sources": {"github": {"skills": ["python"]}}},
@@ -107,14 +107,14 @@ def test_end_to_end_blueprint_to_ranking():
 
 
 def test_two_stage_shortlists_before_ranking():
-    orch = RankingOrchestrator(evaluation_pipeline=_pipeline(), ranking_engine=BaselineRankingEngine())
+    orch = RankingOrchestrator(evaluation_pipeline=_pipeline(), ranking_engine=DeterministicRankingEngine())
     cands = [{"candidate_id": f"c{i}", "raw_sources": {"github": {"skills": ["python"]}}} for i in range(5)]
     out = run(orch.run_two_stage(job_id="J1", role_dna=_role("J1"), candidates=cands, top_k=2, limit=10))
     assert len(out.items) == 2
 
 
 def test_baseline_retrieve_shortlist():
-    rows = run(BaselineRankingEngine().retrieve(
+    rows = run(DeterministicRankingEngine().retrieve(
         "J1", RoleDNA(role_dna_id="r", job_id="J1", role_summary=""),
         [{"candidate_id": f"c{i}"} for i in range(4)], top_k=2))
     assert [r.candidate_id for r in rows] == ["c0", "c1"]

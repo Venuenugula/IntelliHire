@@ -9,7 +9,7 @@ only this module needs to change; the routes stay put.
 from __future__ import annotations
 
 from app.intelligence.role_dna import BlueprintRoleDNAProvider
-from app.runtime.ranking_engine import BaselineRankingEngine
+from app.runtime.deterministic_ranking_engine import DeterministicRankingEngine
 from app.shared.interfaces import RankingEngine, RoleDNAProvider
 
 
@@ -18,6 +18,17 @@ def get_role_dna_provider() -> RoleDNAProvider:
     return BlueprintRoleDNAProvider()
 
 
-def get_ranking_engine() -> RankingEngine:
-    """The deterministic baseline ranker (runtime infrastructure, ready now)."""
-    return BaselineRankingEngine()
+def get_deterministic_ranking_engine() -> RankingEngine:
+    """Inject the DeterministicRankingEngine — temporary ranking INFRASTRUCTURE.
+
+    This is not DELULU's production ranking algorithm; it provides stable,
+    deterministic ordering so the pipeline + API function today. A real engine
+    (see docs/ranking-roadmap.md) replaces it through the same RankingEngine
+    interface with no upstream change.
+    """
+    return DeterministicRankingEngine()
+
+
+# Backward-compatible alias — the HTTP API is unchanged; this provider currently
+# injects the deterministic implementation. Prefer get_deterministic_ranking_engine().
+get_ranking_engine = get_deterministic_ranking_engine

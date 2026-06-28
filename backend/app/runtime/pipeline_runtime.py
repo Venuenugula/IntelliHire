@@ -27,7 +27,17 @@ class StageError(RuntimeError):
 
 
 class PipelineRuntime:
-    """Execute an ordered list of Stages against one PipelineContext."""
+    """Execute an ordered list of Stages against one PipelineContext.
+
+    Current behaviour is intentionally a simple sequential executor and must stay
+    that way for now.
+
+    Future capabilities (documentation only — NOT implemented):
+    parallel stages, conditional stages, retries, timeouts, circuit breakers,
+    fan-out, fan-in, caching, metrics, tracing, rollback, checkpointing. Each can
+    be added behind this same ``run(ctx)`` surface without changing any Stage,
+    the CandidateEvaluationPipeline, or the RankingOrchestrator.
+    """
 
     def __init__(
         self,
