@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from app.runtime.candidate_evaluation_pipeline import (
+    CandidateEvaluationPipeline,
+    PipelineError,
+)
 from app.runtime.pipeline_runtime import PipelineRuntime, StageError
 from app.runtime.stage import Stage, StageInputError
 from app.runtime.stages import (
@@ -13,13 +17,18 @@ from app.runtime.stages import (
 )
 
 __all__ = [
+    # runtime primitives
     "Stage",
     "StageInputError",
     "PipelineRuntime",
     "StageError",
+    # stage adapters
     "EvidenceStage",
     "GraphStage",
     "FusionStage",
     "ReasoningStage",
     "DecisionStage",
+    # orchestration
+    "CandidateEvaluationPipeline",
+    "PipelineError",
 ]
