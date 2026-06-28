@@ -18,6 +18,21 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def _sync_schema(sync_conn) -> None:
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(sync_conn)
+    if inspector.has_table("jobs"):
+        existing = {col["name"] for col in inspector.get_columns("jobs")}
+        if "document_id" not in existing:
+            sync_conn.execute(
+                text("ALTER TABLE jobs ADD COLUMN document_id UUID")
+            )
+            sync_conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_jobs_document_id ON jobs (document_id)")
+            )
+
+
 async def init_db() -> None:
     from app.models import (  # noqa: F401
         candidate,
@@ -29,3 +44,4 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_sync_schema)
