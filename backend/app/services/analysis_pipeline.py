@@ -157,16 +157,22 @@ async def analyze_candidate(db: AsyncSession, candidate_id: uuid.UUID) -> str:
 
     # GitHub/LinkedIn URLs come from the intelligence layer first, then fall
     # back to any URL supplied manually on the candidate record.
+    # Resume-extracted URLs take priority; the manually-entered links stored on
+    # the candidate are the fallback for whatever the resume didn't surface.
     github_url = url_fields.get("github_url") or candidate.github_url
     linkedin_url = url_fields.get("linkedin_url") or candidate.linkedin_url
-    leetcode_url = url_fields.get("leetcode_url")
-    portfolio_url = url_fields.get("portfolio_url")
+    leetcode_url = url_fields.get("leetcode_url") or candidate.leetcode_url
+    portfolio_url = url_fields.get("portfolio_url") or candidate.portfolio_url
 
     # Persist newly discovered URLs back onto the candidate so the UI reflects them.
     if github_url and github_url != candidate.github_url:
         candidate.github_url = github_url
     if linkedin_url and linkedin_url != candidate.linkedin_url:
         candidate.linkedin_url = linkedin_url
+    if leetcode_url and leetcode_url != candidate.leetcode_url:
+        candidate.leetcode_url = leetcode_url
+    if portfolio_url and portfolio_url != candidate.portfolio_url:
+        candidate.portfolio_url = portfolio_url
 
     if github_url:
         # NOTE: linkedin_url is intentionally NOT passed — the GitHub deep pipeline
