@@ -25,10 +25,11 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 @router.post("", response_model=JobResponse)
 async def create_job(payload: JobCreate, db: AsyncSession = Depends(get_db)):
     role_blueprint = await parse_job_description(payload.title, payload.description)
+    blueprint_payload = role_blueprint.model_dump(mode="json")
     job = Job(
         title=payload.title,
         description=payload.description,
-        role_blueprint=role_blueprint,
+        role_blueprint=blueprint_payload,
     )
     db.add(job)
     await db.commit()
@@ -37,7 +38,8 @@ async def create_job(payload: JobCreate, db: AsyncSession = Depends(get_db)):
         job_id=job.id,
         title=job.title,
         description=job.description,
-        role_blueprint=role_blueprint,
+        role_blueprint=blueprint_payload,
+        document_id=job.document_id,
         created_at=job.created_at,
     )
 
@@ -88,6 +90,8 @@ async def list_job_candidates(job_id: uuid.UUID, db: AsyncSession = Depends(get_
             email=c.email,
             github_url=c.github_url,
             linkedin_url=c.linkedin_url,
+            leetcode_url=c.leetcode_url,
+            portfolio_url=c.portfolio_url,
             has_resume=bool(c.resume_path),
             analyzed=c.id in analyzed_ids,
             created_at=c.created_at,
@@ -106,6 +110,7 @@ async def get_job(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         title=job.title,
         description=job.description,
         role_blueprint=job.role_blueprint,
+        document_id=job.document_id,
         created_at=job.created_at,
     )
 
