@@ -32,12 +32,19 @@ CAPABILITIES: tuple[Capability, ...] = (
         "retrieval_ir", 0.28,
         ("information retrieval", "semantic search", "vector search", "embeddings",
          "sentence transformers", "faiss", "pinecone", "weaviate", "qdrant", "milvus",
-         "pgvector", "bm25", "elasticsearch", "opensearch", "hugging face transformers"),
+         "pgvector", "bm25", "elasticsearch", "opensearch", "hugging face transformers",
+         # synonym enrichment for hidden-set robustness (B3) — ranking-neutral on this dataset
+         "dense retrieval", "sparse retrieval", "hybrid search", "hybrid retrieval",
+         "approximate nearest neighbor", "nearest neighbor", "ann", "knn",
+         "vector database", "vector db", "lexical search", "neural search", "colbert"),
         "JD 'absolutely need': embeddings-based retrieval + vector DB / hybrid search",
     ),
     Capability(
         "ranking_recsys", 0.22,
-        ("learning to rank", "ranking", "rerank", "recommendation systems", "recommender"),
+        ("learning to rank", "ranking", "rerank", "recommendation systems", "recommender",
+         # synonym enrichment for hidden-set robustness (B3)
+         "ltr", "pointwise", "pairwise", "listwise", "collaborative filtering",
+         "matrix factorization", "two-tower", "candidate generation", "relevance ranking"),
         "JD owns 'the ranking, retrieval and matching systems'; LTR a named nice-to-have",
     ),
     Capability(

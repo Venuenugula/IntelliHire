@@ -395,14 +395,14 @@ Per candidate: final score, certainty, score decomposition. Each pair line answe
 - **vs #57 (Δ=0.0007):** driven by **behavioral** (1.017 vs 0.929); reverting it would cost rank #56 0.0598
 
 ### 57. CAND_0094759  —  0.6964  [HIGH]
-- Lead AI Engineer (8.6y); caps[retrieval_ir:1.00,ranking_recsys:0.54,nlp_llm:0.96,llm_tooling:0.80]; 3 JD-relevant assessments avg=75
+- Lead AI Engineer (8.6y); caps[retrieval_ir:1.00,ranking_recsys:0.54,nlp_llm:0.96,llm_tooling:0.80]; 3 JD-relevant assessments avg=75; ⚑ low recruiter engagement — verify availability
 - additive: title=0.114, capability=0.322, assessment=0.136, text=0.177
   - capability ← retrieval_ir 0.146, nlp_llm 0.081, ranking_recsys 0.063, llm_tooling 0.033
 - multipliers: behavioral=0.93
 - **vs #58 (Δ=0.0005):** driven by **behavioral** (0.929 vs 0.919); reverting it would cost rank #57 0.0076
 
 ### 58. CAND_0007411  —  0.6959  [HIGH]
-- Senior Machine Learning Engineer (8.0y); caps[retrieval_ir:1.00,ranking_recsys:0.83,nlp_llm:0.66,llm_tooling:0.74]; 5 JD-relevant assessments avg=76
+- Senior Machine Learning Engineer (8.0y); caps[retrieval_ir:1.00,ranking_recsys:0.83,nlp_llm:0.66,llm_tooling:0.74]; 5 JD-relevant assessments avg=76; ⚑ low recruiter engagement — verify availability
 - additive: title=0.114, capability=0.327, assessment=0.138, text=0.178
   - capability ← retrieval_ir 0.146, ranking_recsys 0.095, nlp_llm 0.055, llm_tooling 0.031
 - multipliers: behavioral=0.92

@@ -338,4 +338,9 @@ def _render_reason(cand: dict[str, Any], feats: list[FeatureScore], final: float
         bits.append("⚠ boilerplate")
     if by.get("disqualifiers") and by["disqualifiers"].reason != "none":
         bits.append(by["disqualifiers"].reason)
+    # availability flag: surface strong-but-dormant candidates transparently rather
+    # than burying them (recruiter call) — NOT an extra penalty, just a note.
+    sig = cand.get("redrob_signals") or {}
+    if (sig.get("recruiter_response_rate", 1.0) or 0.0) < 0.15 and not sig.get("open_to_work_flag"):
+        bits.append("⚑ low recruiter engagement — verify availability")
     return "; ".join(bits)[:240]
