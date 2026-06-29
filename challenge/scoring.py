@@ -139,19 +139,27 @@ def f_assessments(cand: dict[str, Any], jd: JDRoleDNA) -> FeatureScore:
 
 
 def f_experience(cand: dict[str, Any], jd: JDRoleDNA) -> FeatureScore:
+    """Experience as a bounded multiplicative PRIOR, not an additive driver.
+
+    Measurement (current dataset) forced this redesign: as an additive term it held
+    a mean 14.8% share of the final score (20/20 top-20 > 10%) while being near-
+    constant for in-band candidates, and it overrode stronger capability in 3/49 top
+    pairs. As a multiplier it carries NO additive mass: in-band -> 1.0 (cannot
+    override anyone), with bounded modulation only at the band edges so it breaks
+    near-ties without outweighing a real capability gap."""
     yrs = (cand.get("profile") or {}).get("years_of_experience")
     if not isinstance(yrs, (int, float)):
-        return FeatureScore("experience_fit", 0.5, 0.3, "experience unknown")
+        return FeatureScore("experience_fit", 0.95, 0.3, "experience unknown")
     lo, hi = jd.exp_ideal_min, jd.exp_ideal_max
     if lo <= yrs <= hi:
-        s = 1.0
+        m = 1.0
     elif yrs < lo:
-        # steepened below-band ramp (recruiter call): a Senior 5-9 role should not
-        # let sub-5y candidates leapfrog in-band seniors unless truly exceptional.
-        s = max(0.0, 1.0 - (lo - yrs) / 2.0)
+        # below-band penalty (recruiter-approved): bounded so an elite junior is
+        # demoted, not eliminated.
+        m = max(0.60, 1.0 - 0.15 * (lo - yrs))
     else:
-        s = max(0.3, 1.0 - (yrs - hi) / 8.0)   # gentler decay above (seniority ok)
-    return FeatureScore("experience_fit", s, 0.9, f"{yrs:.1f}y vs {lo:.0f}-{hi:.0f}")
+        m = max(0.85, 1.0 - 0.03 * (yrs - hi))   # gentle: seniority is fine
+    return FeatureScore("experience_fit", m, 0.9, f"{yrs:.1f}y prior x{m:.2f}")
 
 
 def f_text_relevance(cand: dict[str, Any], jd: JDRoleDNA) -> FeatureScore:
@@ -225,13 +233,15 @@ def f_behavioral(cand: dict[str, Any]) -> FeatureScore:
 # combiner
 # --------------------------------------------------------------------------- #
 
-# positive-score weights among the additive features (ablatable in the Lab)
+# positive-score weights among the additive features (ablatable in the Lab).
+# Experience was REMOVED from the additive blend (now a multiplicative prior — see
+# f_experience) and its 0.12 was renormalized across the remaining four, so the
+# base is now owned by genuine ordering signals led by capability.
 _ADDITIVE_WEIGHTS = {
-    "capability_match": 0.46,
-    "assessment_evidence": 0.16,
-    "text_relevance": 0.16,
-    "experience_fit": 0.12,
-    "title_fit": 0.10,   # also acts as a gate via multiplier below
+    "capability_match": 0.523,
+    "assessment_evidence": 0.182,
+    "text_relevance": 0.182,
+    "title_fit": 0.114,   # also acts as a gate via multiplier below
 }
 
 
@@ -273,7 +283,8 @@ def score_candidate(
     disq = f_disqualifiers(cand, jd)
     behav = f_behavioral(cand)
 
-    feats = [title, caps, assess, exp, text]
+    # experience is now a PRIOR (multiplier), not part of the additive base
+    feats = [title, caps, assess, text]
     additive: dict[str, float] = {}
     base = 0.0
     for fs in feats:
@@ -284,18 +295,21 @@ def score_candidate(
 
     # title gate: off-target titles suppressed (not zeroed); neutral=1.0 if disabled
     gate = 1.0 if "title_fit" in disable else (0.15 + 0.85 * title.score)
+    exp_m = 1.0 if "experience_fit" in disable else exp.score
     boiler_m = 1.0 if "boilerplate" in disable else boiler.score
     disq_m = 1.0 if "disqualifiers" in disable else disq.score
     behav_m = 1.0 if "behavioral" in disable else behav.score
 
-    final = base * gate * boiler_m * disq_m * behav_m
+    final = base * gate * exp_m * boiler_m * disq_m * behav_m
     final = max(0.0, min(1.0, final))
 
+    exp.contribution = exp_m
     boiler.contribution = boiler_m
     disq.contribution = disq_m
     behav.contribution = behav_m
-    all_feats = feats + [boiler, disq, behav]
-    multipliers = {"gate": gate, "boilerplate": boiler_m, "disqualifiers": disq_m, "behavioral": behav_m}
+    all_feats = feats + [exp, boiler, disq, behav]
+    multipliers = {"gate": gate, "experience": exp_m, "boilerplate": boiler_m,
+                   "disqualifiers": disq_m, "behavioral": behav_m}
 
     # aggregate certainty: mean confidence across families (HIGH/MED/LOW in audit)
     certainty = (sum(f.confidence for f in all_feats) / len(all_feats)) if all_feats else 0.0
