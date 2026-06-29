@@ -1,0 +1,84 @@
+# Redrob Hackathon — Submission Metadata
+# Technical fields are filled from the actual run. Fields marked TODO are team
+# identity / hosting details only you can provide — fill before submitting.
+
+# ============================================================================
+# Team identity   (TODO — only you can fill these)
+# ============================================================================
+team_name: "TODO-your-registered-participant-id"
+
+primary_contact:
+  name: "Venu Nugula"
+  email: "venuenugula9@gmail.com"
+  phone: "TODO-+91-XXXXXXXXXX"
+
+team_members:
+  - name: "TODO"
+    email: "TODO"
+    role: "ML / Ranking Engineer"
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "TODO-https://github.com/<you>/<repo>"   # must be reachable / grantable
+sandbox_link: "TODO-hosted-demo-url"                   # HF Spaces / Streamlit / Colab / etc.
+
+reproduce_command: "python challenge/rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+# Runs end-to-end in ~20s on CPU, 16GB RAM, no network. Output passes
+# validate_submission.py. See final_submission/validation.log.
+
+# ============================================================================
+# Compute environment   (from the actual run)
+# ============================================================================
+compute:
+  platform: "Local Linux box"
+  cpu_cores: 4
+  ram_gb: 16                         # confirm host RAM; engine peak well under 16GB
+  python_version: "3.10.12"
+  os: "Ubuntu (Linux 6.8.0-124-generic)"
+  uses_gpu_for_inference: false      # ranker is CPU-only
+  has_network_during_ranking: false  # no API/network calls during ranking
+  pre_computation_required: false    # IDF + scoring both computed within the 5-min run
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration   (transparency — declared use is not penalized)
+# ============================================================================
+ai_tools_used:
+  - "Claude"   # Claude Code: dataset forensics, engine design, measurement harness
+
+ai_usage_summary: |
+  Used Claude (Claude Code) for dataset forensic analysis, ranking-engine design,
+  and building the measurement/validation harness (ablation, rank-correlation,
+  boundary analysis). No candidate data was sent to any LLM during ranking — the
+  ranker is fully deterministic, offline, CPU-only, and entirely rule-based and
+  inspectable. Claude assisted the engineers; it is not in the ranking path.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  Deterministic, CPU-only, offline rule-based ranker (no LLM/network in the ranking
+  path). The JD is interpreted as a structured RoleDNA: six capability groups
+  (retrieval/IR, ranking/recsys, NLP/LLM, production systems, evaluation, LLM-tooling)
+  with JD-provenance weights. Two streaming passes over candidates.jsonl: (1) corpus
+  skill document-frequency -> IDF rarity; (2) score every candidate. The additive base
+  is led by capability match (IDF-rarity x endorsement-and-duration credibility), plus
+  assessment evidence, JD-narrative text relevance, and title fit. A current-title gate
+  suppresses off-target roles; a boilerplate-summary detector neutralises the dataset's
+  keyword-stuffer honeypots; experience and recruiter-behavioural availability act as
+  bounded multiplicative priors, not additive drivers. Career trajectory and company
+  name were measured to be redundant/noise and excluded. Every design decision was
+  validated with a measurement harness (feature ablation, Spearman/Kendall, capability-
+  group ablation, semantic-robustness perturbation, boundary sensitivity), not intuition.
+  Runtime ~20s for 100k candidates on 4 CPU cores.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true          # explicit honeypot detection (boilerplate + title-gate)
+  reproduction_tested: true

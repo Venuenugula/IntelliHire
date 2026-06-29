@@ -1,0 +1,16 @@
+pass1: IDF over 100,000 candidates, 133 distinct skills (2.8s)
+pass2: scored 100,000 candidates (19.6s)
+wrote 100 rows -> challenge/final_submission/final.csv (19.7s)
+VALIDATION: submission is valid ✓
+
+Top 10 preview:
+    1. CAND_0088025  0.9024  Staff Machine Learning Engineer (8.6y); caps[retrieval_ir:1.00,ranking_recsys:0.92,nlp_llm
+    2. CAND_0079387  0.8692  AI Engineer (6.9y); caps[retrieval_ir:0.99,ranking_recsys:0.89,nlp_llm:1.00,production_sys
+    3. CAND_0069905  0.8500  Applied ML Engineer (6.6y); caps[retrieval_ir:0.98,ranking_recsys:0.93,nlp_llm:0.98,produc
+    4. CAND_0077337  0.8284  Staff Machine Learning Engineer (7.0y); caps[retrieval_ir:1.00,ranking_recsys:0.79,nlp_llm
+    5. CAND_0064904  0.8262  AI Engineer (4.9y); caps[retrieval_ir:1.00,ranking_recsys:0.61,nlp_llm:0.90,production_sys
+    6. CAND_0052328  0.8257  Recommendation Systems Engineer (6.5y); caps[retrieval_ir:0.98,ranking_recsys:0.88,nlp_llm
+    7. CAND_0006567  0.8247  Senior AI Engineer (7.9y); caps[retrieval_ir:0.71,ranking_recsys:0.99,nlp_llm:0.72,product
+    8. CAND_0061265  0.8175  Recommendation Systems Engineer (6.6y); caps[retrieval_ir:1.00,ranking_recsys:0.87,nlp_llm
+    9. CAND_0066376  0.7962  Applied ML Engineer (5.7y); caps[retrieval_ir:1.00,ranking_recsys:0.95,nlp_llm:0.99,llm_to
+   10. CAND_0081846  0.7809  Lead AI Engineer (6.7y); caps[retrieval_ir:1.00,ranking_recsys:0.97,production_systems:0.8
