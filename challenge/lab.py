@@ -67,6 +67,35 @@ def rank_all(cands, jd, idf, disable=frozenset()):
     return scored
 
 
+def rank_correlation(ids_a: list[str], ids_b: list[str]) -> dict[str, float]:
+    """Spearman rho + Kendall tau over the INTERSECTION of two ranked id lists.
+    Proves internal-ordering stability (not just set membership). O(n^2) — fine for top-100."""
+    ra = {c: i for i, c in enumerate(ids_a)}
+    rb = {c: i for i, c in enumerate(ids_b)}
+    common = [c for c in ids_a if c in rb]
+    n = len(common)
+    if n < 2:
+        return {"n": n, "spearman": 1.0, "kendall": 1.0, "overlap": n}
+    xa = [ra[c] for c in common]
+    xb = [rb[c] for c in common]
+    # Spearman = Pearson on the rank values
+    ma, mb = sum(xa) / n, sum(xb) / n
+    cov = sum((xa[i] - ma) * (xb[i] - mb) for i in range(n))
+    va = sum((v - ma) ** 2 for v in xa) ** 0.5
+    vb = sum((v - mb) ** 2 for v in xb) ** 0.5
+    spearman = cov / (va * vb) if va and vb else 1.0
+    # Kendall tau-a
+    conc = disc = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            s = (xa[i] - xa[j]) * (xb[i] - xb[j])
+            conc += s > 0
+            disc += s < 0
+    tot = n * (n - 1) / 2
+    kendall = (conc - disc) / tot if tot else 1.0
+    return {"n": n, "spearman": spearman, "kendall": kendall, "overlap": len(common)}
+
+
 # --------------------------------------------------------------------------- #
 # Phase 3 — feature-family ablation
 # --------------------------------------------------------------------------- #
@@ -154,6 +183,12 @@ def audit(cands, jd, idf) -> str:
         out.append(f"### {i+1}. {s.candidate_id}  —  {s.score:.4f}  [{_cert(s.certainty)}]")
         out.append(f"- {s.reason}")
         out.append(f"- additive: {add or 'none'}")
+        # per-capability reasoning: which technical strengths drove the capability score
+        cap_fs = next((f for f in s.features if f.name == "capability_match"), None)
+        if cap_fs and cap_fs.detail:
+            w = 0.523  # capability additive weight; expresses sub-caps as score contribution
+            top = sorted(((k, v * w) for k, v in cap_fs.detail.items() if v > 0), key=lambda x: -x[1])
+            out.append("  - capability ← " + ", ".join(f"{k} {v:.3f}" for k, v in top[:5]))
         out.append(f"- multipliers: {mul or 'all neutral'}")
         if i + 1 < len(base):
             lo = base[i + 1]

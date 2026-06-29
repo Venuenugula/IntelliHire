@@ -6,12 +6,12 @@ Lower top-100 overlap / higher rank-move ⇒ the ranking depends MORE on that fa
 
 | disabled family | top100 overlap | top20 overlap | mean rank move (kept) | dropped from top100 |
 |---|---|---|---|---|
-| capability_match | 68% | 55% | 19.8 | 32 |
-| title_fit | 74% | 70% | 14.9 | 26 |
-| behavioral | 81% | 60% | 15.0 | 19 |
-| experience_fit | 83% | 85% | 11.1 | 17 |
-| assessment_evidence | 84% | 75% | 18.7 | 16 |
-| text_relevance | 87% | 90% | 9.2 | 13 |
+| capability_match | 67% | 50% | 21.4 | 33 |
+| title_fit | 72% | 65% | 14.4 | 28 |
+| assessment_evidence | 83% | 60% | 18.7 | 17 |
+| experience_fit | 83% | 80% | 10.5 | 17 |
+| text_relevance | 85% | 95% | 8.6 | 15 |
+| behavioral | 91% | 65% | 8.3 | 9 |
 | boilerplate | 100% | 100% | 0.0 | 0 |
 | disqualifiers | 100% | 100% | 0.0 | 0 |
 

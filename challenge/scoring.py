@@ -73,6 +73,7 @@ class FeatureScore:
     confidence: float     # 0..1
     reason: str
     contribution: float = 0.0  # filled by combiner
+    detail: dict[str, float] | None = None  # sub-signal breakdown (e.g. per-capability)
 
 
 # --------------------------------------------------------------------------- #
@@ -91,10 +92,10 @@ def f_capabilities(cand: dict[str, Any], jd: JDRoleDNA, idf: dict[str, float]) -
     skills = cand.get("skills") or []
     # precompute per-skill credibility and idf-weighted presence
     total = 0.0
-    detail: list[str] = []
+    detail_str: list[str] = []
+    breakdown: dict[str, float] = {}  # cap.key -> weighted contribution to capability score
     for cap in jd.capabilities:
         cap_score = 0.0
-        best = 0.0
         for s in skills:
             nm = (s.get("name") or "").lower()
             if not nm:
@@ -106,17 +107,17 @@ def f_capabilities(cand: dict[str, Any], jd: JDRoleDNA, idf: dict[str, float]) -
                 # credibility: endorsements×√duration×proficiency, damped
                 cred = math.log1p(e) * math.sqrt(1 + d) * prof
                 rarity = idf.get(nm, 1.0)
-                contrib = (1.0 + 0.15 * cred) * rarity
-                cap_score += contrib
-                best = max(best, contrib)
+                cap_score += (1.0 + 0.15 * cred) * rarity
         # squash capability score: saturating so 1 strong skill ≈ most of the credit
         sat = 1.0 - math.exp(-cap_score / 6.0) if cap_score > 0 else 0.0
-        total += cap.weight * sat
+        weighted = cap.weight * sat
+        total += weighted
+        breakdown[cap.key] = weighted
         if sat > 0.05:
-            detail.append(f"{cap.key}:{sat:.2f}")
+            detail_str.append(f"{cap.key}:{sat:.2f}")
     # total is already weighted by capability weights summing ~1.0
-    reason = "caps[" + ",".join(detail[:4]) + "]" if detail else "no capability skills"
-    return FeatureScore("capability_match", min(1.0, total), 0.9, reason)
+    reason = "caps[" + ",".join(detail_str[:4]) + "]" if detail_str else "no capability skills"
+    return FeatureScore("capability_match", min(1.0, total), 0.9, reason, detail=breakdown)
 
 
 def f_assessments(cand: dict[str, Any], jd: JDRoleDNA) -> FeatureScore:
@@ -224,7 +225,8 @@ def f_behavioral(cand: dict[str, Any]) -> FeatureScore:
         + 0.25 * min(1.0, interview / 0.85)
         + 0.15 * open_w
     )
-    mult = 0.6 + 0.52 * comp   # 0.6 (dormant) .. ~1.12 (hot)
+    mult = 0.85 + 0.20 * comp   # compressed [0.85, 1.05]: secondary availability prior,
+    #                             not a near-primary reshaper of the ranking
     return FeatureScore("behavioral", mult, 0.7,
                         f"resp={rr:.2f} saved={saved} interview={interview:.2f} open={bool(open_w)}")
 
