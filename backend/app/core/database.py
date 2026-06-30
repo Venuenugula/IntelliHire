@@ -13,6 +13,9 @@ from app.core.config import settings
 _COLUMN_BACKFILLS: list[str] = [
     "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS leetcode_url VARCHAR(512)",
     "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS portfolio_url VARCHAR(512)",
+    # jobs.document_id was added after the table already existed in dev DBs.
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS document_id UUID",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_document_id ON jobs (document_id)",
 ]
 
 engine = create_async_engine(settings.database_url, echo=settings.debug)
@@ -26,21 +29,6 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
-
-
-def _sync_schema(sync_conn) -> None:
-    from sqlalchemy import inspect, text
-
-    inspector = inspect(sync_conn)
-    if inspector.has_table("jobs"):
-        existing = {col["name"] for col in inspector.get_columns("jobs")}
-        if "document_id" not in existing:
-            sync_conn.execute(
-                text("ALTER TABLE jobs ADD COLUMN document_id UUID")
-            )
-            sync_conn.execute(
-                text("CREATE INDEX IF NOT EXISTS ix_jobs_document_id ON jobs (document_id)")
-            )
 
 
 async def init_db() -> None:
