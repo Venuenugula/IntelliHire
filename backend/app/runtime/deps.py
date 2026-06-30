@@ -1,34 +1,120 @@
 """FastAPI dependency providers for the v2 orchestration layer.
 
-These are the single injection points the v2 API routes use. As the other
-developers land their real engine implementations (EvidenceProvider, GraphBuilder,
-FusionEngine, ReasoningEngine, DecisionEngine — and any production RankingEngine),
-only this module needs to change; the routes stay put.
+This module is the single composition root for the v2 runtime. Routes depend on the
+*interfaces* declared in :mod:`app.shared.interfaces` and receive concrete wiring only
+through these providers — no route, stage, or adapter instantiates another service
+directly. When a real engine replaces an adapter (e.g. the Graph Intelligence
+``CandidateGraphAdapter`` for ``NoOpGraphAdapter``), only this module changes.
+
+Conversion lives exclusively in :mod:`app.runtime.adapters`; this module only wires.
 """
 
 from __future__ import annotations
 
 from app.intelligence.role_dna import BlueprintRoleDNAProvider
+from app.runtime.adapters import (
+    DecisionEngineAdapter,
+    EvidenceProviderAdapter,
+    NoOpFusionEngine,
+    NoOpGraphAdapter,
+    ReasoningEngineAdapter,
+)
+from app.runtime.candidate_evaluation_pipeline import CandidateEvaluationPipeline
 from app.runtime.deterministic_ranking_engine import DeterministicRankingEngine
-from app.shared.interfaces import RankingEngine, RoleDNAProvider
+from app.runtime.ranking_orchestrator import RankingOrchestrator
+from app.shared.enums import EvidenceSource
+from app.shared.interfaces import (
+    DecisionEngine,
+    EvidenceProvider,
+    FusionEngine,
+    GraphBuilder,
+    RankingEngine,
+    ReasoningEngine,
+    RoleDNAProvider,
+)
+
+# Evidence sources that have an adapter today (Developer 2's completed providers).
+EVIDENCE_SOURCES: tuple[EvidenceSource, ...] = (
+    EvidenceSource.RESUME,
+    EvidenceSource.GITHUB,
+    EvidenceSource.LINKEDIN,
+    EvidenceSource.LEETCODE,
+    EvidenceSource.PORTFOLIO,
+)
 
 
+# --------------------------------------------------------------------------- #
+# Role side
+# --------------------------------------------------------------------------- #
 def get_role_dna_provider() -> RoleDNAProvider:
     """The deterministic blueprint -> RoleDNA enricher (owned module, ready now)."""
     return BlueprintRoleDNAProvider()
 
 
-def get_deterministic_ranking_engine() -> RankingEngine:
-    """Inject the DeterministicRankingEngine — temporary ranking INFRASTRUCTURE.
+# --------------------------------------------------------------------------- #
+# Candidate-side engines (each behind its shared interface)
+# --------------------------------------------------------------------------- #
+def get_evidence_providers() -> list[EvidenceProvider]:
+    """One EvidenceProviderAdapter per supported source (Developer 2 -> shared Evidence)."""
+    return [EvidenceProviderAdapter(source) for source in EVIDENCE_SOURCES]
 
-    This is not DELULU's production ranking algorithm; it provides stable,
-    deterministic ordering so the pipeline + API function today. A real engine
-    (see docs/ranking-roadmap.md) replaces it through the same RankingEngine
-    interface with no upstream change.
+
+def get_graph_builder() -> GraphBuilder:
+    """Graph stage. NoOpGraphAdapter while Graph Intelligence (Developer 3) is absent.
+
+    Swap to ``CandidateGraphAdapter`` here — and only here — when it lands.
+    """
+    return NoOpGraphAdapter()
+
+
+def get_fusion_engine() -> FusionEngine:
+    """Fusion stage. No-op while Graph Intelligence is absent (nothing to fuse)."""
+    return NoOpFusionEngine()
+
+
+def get_reasoning_engine() -> ReasoningEngine:
+    """Developer 4's ReasoningEngine, adapted to the async shared Protocol."""
+    return ReasoningEngineAdapter()
+
+
+def get_decision_engine() -> DecisionEngine:
+    """Developer 4's DecisionEngine, adapted to the async shared Protocol."""
+    return DecisionEngineAdapter()
+
+
+def get_ranking_engine() -> RankingEngine:
+    """The active RankingEngine.
+
+    Depend on this everywhere. ``DeterministicRankingEngine`` is registered here only
+    as the default DI implementation (temporary ranking infrastructure; see
+    docs/ranking-roadmap.md). A future engine replaces it through the same
+    ``RankingEngine`` interface with no upstream change — the runtime never names the
+    concrete implementation.
     """
     return DeterministicRankingEngine()
 
 
-# Backward-compatible alias — the HTTP API is unchanged; this provider currently
-# injects the deterministic implementation. Prefer get_deterministic_ranking_engine().
-get_ranking_engine = get_deterministic_ranking_engine
+# Backward-compatible aliases (interface-typed). Prefer ``get_ranking_engine``.
+get_deterministic_ranking_engine = get_ranking_engine
+
+
+# --------------------------------------------------------------------------- #
+# Composed runtime
+# --------------------------------------------------------------------------- #
+def get_candidate_evaluation_pipeline() -> CandidateEvaluationPipeline:
+    """Assemble the per-candidate chain (Evidence -> Graph -> Fusion -> Reasoning -> Decision)."""
+    return CandidateEvaluationPipeline(
+        evidence_providers=get_evidence_providers(),
+        graph_builder=get_graph_builder(),
+        fusion_engine=get_fusion_engine(),
+        reasoning_engine=get_reasoning_engine(),
+        decision_engine=get_decision_engine(),
+    )
+
+
+def get_ranking_orchestrator() -> RankingOrchestrator:
+    """Batch orchestration: per-candidate evaluation + rerank into a RankedList."""
+    return RankingOrchestrator(
+        evaluation_pipeline=get_candidate_evaluation_pipeline(),
+        ranking_engine=get_ranking_engine(),
+    )

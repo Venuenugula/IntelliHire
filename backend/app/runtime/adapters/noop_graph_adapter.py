@@ -35,6 +35,10 @@ class NoOpGraphAdapter:
             len(evidence),
             candidate_id,
         )
+        # Pass the raw evidence through on metadata (JSON-serializable) so the
+        # ReasoningEngineAdapter can reason directly from evidence while Graph
+        # Intelligence is absent. nodes/edges/ledger stay empty — we do not build
+        # a graph. ``graph_disabled`` is the switch the reasoning adapter reads.
         return CandidateGraph(
             graph_id=graph_id,
             candidate_id=candidate_id,
@@ -43,10 +47,12 @@ class NoOpGraphAdapter:
             edges=[],
             evidence_ledger=[],
             metadata={
+                "graph_disabled": True,
                 "graph_stage": "skipped",
                 "adapter": "NoOpGraphAdapter",
                 "reason": "Graph Intelligence (Developer 3) not implemented",
                 "evidence_count": len(evidence),
+                "evidence": [ev.model_dump(mode="json") for ev in evidence],
             },
         )
 
