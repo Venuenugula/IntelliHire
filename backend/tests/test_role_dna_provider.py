@@ -50,8 +50,9 @@ def test_build_maps_blueprint_fields():
     assert isinstance(dna, RoleDNA)
     assert dna.role_dna_id == "roledna:J1" and dna.job_id == "J1"
     assert dna.engineering_level == "senior"
-    assert dna.must_have_skills == ["python", "fastapi"]
-    assert dna.nice_to_have_skills == ["kubernetes"]
+    # Skill refs are canonical entity ids (match CandidateGraph node ids), not bare names.
+    assert dna.must_have_skills == ["skill:python", "skill:fastapi"]
+    assert dna.nice_to_have_skills == ["skill:kubernetes"]
     assert dna.domain == "Search"
     assert dna.derived_from_blueprint_version == "2.0.0"
 

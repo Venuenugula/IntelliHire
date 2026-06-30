@@ -15,11 +15,39 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.intelligence.candidate_graph.entity_resolver import EntityResolver
 from app.intelligence.role_dna import inference as inf
-from app.shared.enums import Intensity
+from app.shared.enums import EvidenceType, Intensity
 from app.shared.models import RoleDNA
 
 logger = logging.getLogger(__name__)
+
+# Single canonicalization authority for entity references: the SAME resolver the
+# GraphBuilder uses to mint node ids. Routing RoleDNA's skills through it guarantees
+# role refs are byte-identical to CandidateGraph node ids (e.g. 'skill:python', and
+# 'postgres' -> 'skill:postgresql'), so the gap analyzer / claim synthesizer /
+# uncertainty detector match on equality instead of failing 'python' != 'skill:python'.
+_ENTITY_RESOLVER = EntityResolver()
+
+
+def _canonical_skill_refs(names: list[str]) -> list[str]:
+    """Canonicalize raw skill names into the shared entity-ref convention.
+
+    Order-preserving and de-duplicated on the resolved node id. Skills are resolved
+    as ``EvidenceType.SKILL`` so the produced refs are exactly what the graph emits.
+    Only the stored ``must_have_skills`` / ``nice_to_have_skills`` reference fields are
+    canonicalized; human-facing summary/signal text keeps the original bare names.
+    """
+    refs: list[str] = []
+    seen: set[str] = set()
+    for name in names:
+        if not isinstance(name, str) or not name.strip():
+            continue
+        node_id = _ENTITY_RESOLVER.resolve(name, EvidenceType.SKILL).node_id
+        if node_id not in seen:
+            seen.add(node_id)
+            refs.append(node_id)
+    return refs
 
 
 class BlueprintRoleDNAProvider:
@@ -51,6 +79,11 @@ class BlueprintRoleDNAProvider:
         domain = inf.field_value(bp.get("domain"))
         must_have = inf.value_list(bp.get("required_skills"))
         nice_to_have = inf.value_list(bp.get("preferred_skills"))
+        # Canonical entity refs for the stored RoleDNA reference fields (match graph
+        # node ids). The bare `must_have`/`nice_to_have` lists below are kept for
+        # human-facing summary/signal/success-profile text — unchanged on purpose.
+        must_have_refs = _canonical_skill_refs(must_have)
+        nice_to_have_refs = _canonical_skill_refs(nice_to_have)
         responsibilities = inf.value_list(bp.get("responsibilities"))
         behavioural = inf.value_list(bp.get("behavioral_traits"))
         success_metrics = inf.value_list(bp.get("success_metrics"))
@@ -94,8 +127,8 @@ class BlueprintRoleDNAProvider:
                 must_have,
                 responsibilities,
             ),
-            must_have_skills=must_have,
-            nice_to_have_skills=nice_to_have,
+            must_have_skills=must_have_refs,
+            nice_to_have_skills=nice_to_have_refs,
             domain=domain if isinstance(domain, str) else None,
             engineering_level=level,
             ownership_level=ownership,

@@ -87,7 +87,8 @@ def test_missing_decision_raises_pipeline_error():
 
 def test_end_to_end_blueprint_to_ranking():
     role = _role()
-    assert isinstance(role, RoleDNA) and role.must_have_skills == ["python", "fastapi"]
+    # Canonical entity refs (match CandidateGraph node ids), not bare skill names.
+    assert isinstance(role, RoleDNA) and role.must_have_skills == ["skill:python", "skill:fastapi"]
 
     orch = RankingOrchestrator(evaluation_pipeline=_pipeline(), ranking_engine=DeterministicRankingEngine())
     candidates = [

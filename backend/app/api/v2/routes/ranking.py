@@ -5,13 +5,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, status
 
 from app.api.v2.schemas import ERROR_RESPONSES, RankCandidatesRequest
-from app.runtime.deps import get_deterministic_ranking_engine
+from app.runtime.deps import get_ranking_engine
 from app.shared.constants import DEFAULT_RETRIEVAL_TOP_K, SUBMISSION_SIZE
 from app.shared.enums import RankingStage
 from app.shared.interfaces import RankingEngine
 from app.shared.models import RankedList, RoleDNA
 
-router = APIRouter(prefix="/ranking", tags=["v2: ranking"])
+# INTERNAL/DEBUG: single-stage endpoint, not the frontend API. Use POST /v2/rankings.
+router = APIRouter(prefix="/ranking", tags=["v2: internal/debug"])
 
 
 @router.post(
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/ranking", tags=["v2: ranking"])
 )
 async def rank_candidates(
     payload: RankCandidatesRequest,
-    engine: RankingEngine = Depends(get_deterministic_ranking_engine),
+    engine: RankingEngine = Depends(get_ranking_engine),
 ) -> RankedList:
     # The request validator guarantees the per-stage inputs are present.
     if payload.stage == RankingStage.RETRIEVAL:

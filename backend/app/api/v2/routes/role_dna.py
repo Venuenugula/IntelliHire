@@ -9,7 +9,8 @@ from app.runtime.deps import get_role_dna_provider
 from app.shared.interfaces import RoleDNAProvider
 from app.shared.models import RoleDNA
 
-router = APIRouter(prefix="/role-dna", tags=["v2: role-dna"])
+# INTERNAL/DEBUG: single-stage endpoint, not the frontend API. Use POST /v2/evaluations.
+router = APIRouter(prefix="/role-dna", tags=["v2: internal/debug"])
 
 
 @router.post(
