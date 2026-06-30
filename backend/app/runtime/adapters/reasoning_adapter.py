@@ -70,16 +70,40 @@ def _materiality(entity_ref: str, role: RoleDNA) -> Intensity:
     return Intensity.MEDIUM
 
 
+def _strip_ref(ref: str) -> str:
+    """'skill:python' -> 'python'; 'python' -> 'python' (for cross-convention matching)."""
+    return ref.split(":", 1)[1] if ":" in ref else ref
+
+
+def _role_ref_index(role: RoleDNA) -> dict[str, str]:
+    """Map normalized skill name -> the role's exact ref string (bare or prefixed).
+
+    RoleDNA refs and Evidence entity_refs can use different conventions (e.g. the
+    blueprint provider emits bare ``python`` while Evidence emits ``skill:python``).
+    Aligning claim entity_refs to the role's exact string lets Developer 4's gap
+    analyzer — which matches by ``entity_ref in role.must_have_skills`` — work.
+    """
+    index: dict[str, str] = {}
+    for ref in list(role.must_have_skills) + list(role.nice_to_have_skills):
+        index[_strip_ref(ref).lower()] = ref
+    return index
+
+
 def _claims_from_evidence(evidence: list[Evidence], role: RoleDNA) -> list[ReasoningClaim]:
     """Synthesize one claim per entity from raw evidence (graph-disabled fallback).
 
     Deterministic and grounded in real evidence — no graph, no invented facts. Claim
     confidence follows Developer 4's corroboration shape (mean support confidence +
-    source-diversity bonus - contradiction penalty).
+    source-diversity bonus - contradiction penalty). Claim entity_refs are aligned to
+    the role's ref convention so gap/materiality matching works across conventions.
     """
+    role_index = _role_ref_index(role)
+
     grouped: dict[str, dict[str, list[Evidence]]] = {}
     for ev in evidence:
-        bucket = grouped.setdefault(ev.entity_ref, {"supports": [], "contradicts": []})
+        # Align to the role's exact ref string when this skill is a role requirement.
+        ref = role_index.get(_strip_ref(ev.entity_ref).lower(), ev.entity_ref)
+        bucket = grouped.setdefault(ref, {"supports": [], "contradicts": []})
         key = "contradicts" if ev.polarity == EvidencePolarity.CONTRADICTS else "supports"
         bucket[key].append(ev)
 

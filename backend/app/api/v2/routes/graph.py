@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.v2.schemas import ERROR_RESPONSES, BuildGraphRequest
+from app.runtime.deps import get_graph_builder
+from app.shared.interfaces import GraphBuilder
 from app.shared.models import CandidateGraph
 
-router = APIRouter(prefix="/graph", tags=["v2: graph"])
+# INTERNAL/DEBUG: single-stage endpoint, not the frontend API. Use POST /v2/evaluations.
+router = APIRouter(prefix="/graph", tags=["v2: internal/debug"])
 
 
 @router.post(
@@ -15,25 +18,16 @@ router = APIRouter(prefix="/graph", tags=["v2: graph"])
     response_model=CandidateGraph,
     status_code=status.HTTP_200_OK,
     responses=ERROR_RESPONSES,
-    summary="Build a CandidateGraph from Evidence",
+    summary="[debug] Build a CandidateGraph from Evidence",
     description=(
-        "Assemble a candidate's Evidence into the unified CandidateGraph "
-        "(nodes, edges, evidence ledger). The server assigns the graph_id. "
-        "STUB: returns a minimal valid graph with a server-assigned id and an "
-        "empty topology."
+        "INTERNAL/DEBUG. Assemble Evidence into a CandidateGraph via the injected "
+        "GraphBuilder. Graph Intelligence (Developer 3) is not yet implemented, so the "
+        "active builder is the NoOpGraphAdapter: it passes evidence through and emits "
+        "'graph skipped' telemetry. The frontend should use POST /v2/evaluations."
     ),
 )
-async def build_graph(payload: BuildGraphRequest) -> CandidateGraph:
-    # Stub: GraphBuilder not wired yet. Server assigns the graph_id.
-    graph_id = f"graph:{payload.candidate_id}"
-    if payload.job_id:
-        graph_id = f"{graph_id}:{payload.job_id}"
-    return CandidateGraph(
-        graph_id=graph_id,
-        candidate_id=payload.candidate_id,
-        job_id=payload.job_id,
-        nodes=[],
-        edges=[],
-        evidence_ledger=[],
-        metadata={"stub": True, "evidence_count": len(payload.evidence)},
-    )
+async def build_graph(
+    payload: BuildGraphRequest,
+    builder: GraphBuilder = Depends(get_graph_builder),
+) -> CandidateGraph:
+    return await builder.build(payload.candidate_id, payload.evidence, payload.job_id)

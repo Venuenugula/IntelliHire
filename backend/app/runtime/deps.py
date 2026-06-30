@@ -54,9 +54,14 @@ def get_role_dna_provider() -> RoleDNAProvider:
 # --------------------------------------------------------------------------- #
 # Candidate-side engines (each behind its shared interface)
 # --------------------------------------------------------------------------- #
+def get_evidence_provider(source: EvidenceSource) -> EvidenceProvider:
+    """One EvidenceProviderAdapter for a single source (Developer 2 -> shared Evidence)."""
+    return EvidenceProviderAdapter(source)
+
+
 def get_evidence_providers() -> list[EvidenceProvider]:
     """One EvidenceProviderAdapter per supported source (Developer 2 -> shared Evidence)."""
-    return [EvidenceProviderAdapter(source) for source in EVIDENCE_SOURCES]
+    return [get_evidence_provider(source) for source in EVIDENCE_SOURCES]
 
 
 def get_graph_builder() -> GraphBuilder:
