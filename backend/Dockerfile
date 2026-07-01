@@ -27,4 +27,5 @@ USER appuser
 EXPOSE 8000
 
 # Runtime only — no table creation, no migrations (see init_db fail-fast guard).
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Honor $PORT (Render/Cloud Run inject it); default to 8000 for local runs.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
