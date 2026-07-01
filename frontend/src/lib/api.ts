@@ -2,13 +2,17 @@ import type {
   AuthToken,
   Candidate,
   CandidateDetail,
+  CandidateGraph,
   CandidateListItem,
+  EvaluationResponse,
   Job,
   RankingItem,
   Recruiter,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+// The v2 intelligence API is mounted at `/v2` on the same origin as the v1 `/api`.
+const V2_URL = `${API_URL.replace(/\/api\/?$/, "")}/v2`;
 
 const TOKEN_KEY = "delulu_token";
 const RECRUITER_KEY = "delulu_recruiter";
@@ -71,9 +75,9 @@ function parseError(text: string, status: number): string {
   return text || `Request failed: ${status}`;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function doHttp<T>(url: string, options?: RequestInit): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(url, {
     ...options,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -84,6 +88,32 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(parseError(await res.text(), res.status));
   }
   return res.json();
+}
+
+// De-duplicate concurrent identical GETs (e.g. the candidate page and
+// evaluateCandidate both fetching the same detail on mount). In-flight only —
+// the entry clears on settle, so responses are never staled.
+const inflightGets = new Map<string, Promise<unknown>>();
+
+/** Shared fetch core: attaches auth, parses backend errors, returns JSON. */
+function http<T>(url: string, options?: RequestInit): Promise<T> {
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method !== "GET") return doHttp<T>(url, options);
+  const existing = inflightGets.get(url);
+  if (existing) return existing as Promise<T>;
+  const pending = doHttp<T>(url, options).finally(() => inflightGets.delete(url));
+  inflightGets.set(url, pending);
+  return pending;
+}
+
+/** Call the v1 business API (`/api/...`). */
+function request<T>(path: string, options?: RequestInit): Promise<T> {
+  return http<T>(`${API_URL}${path}`, options);
+}
+
+/** Call the v2 intelligence API (`/v2/...`) — same origin, different mount. */
+function requestV2<T>(path: string, options?: RequestInit): Promise<T> {
+  return http<T>(`${V2_URL}${path}`, options);
 }
 
 export async function registerRecruiter(
@@ -160,4 +190,51 @@ export async function getRankings(jobId: string): Promise<RankingItem[]> {
 
 export async function getCandidateDetail(candidateId: string): Promise<CandidateDetail> {
   return request<CandidateDetail>(`/candidates/${candidateId}`);
+}
+
+/**
+ * Assemble the raw per-source payloads the v2 evaluation pipeline expects from a
+ * candidate's already-analyzed evidence. Each source's stored `processed_content`
+ * is exactly the package the backend normalizer re-ingests, keyed by source name
+ * (e.g. `{ github: {...}, resume: {...} }`).
+ */
+function assembleSources(detail: CandidateDetail): Record<string, unknown> {
+  const sources: Record<string, unknown> = {};
+  for (const ev of detail.evidence) {
+    if (ev.processed_content) sources[ev.source_type] = ev.processed_content;
+  }
+  return sources;
+}
+
+/**
+ * Run the full v2 hiring-evaluation pipeline for a candidate against their job and
+ * return the business result (recommendation, confidence, reasons, reservations,
+ * interview focus). Reuses data the app already has — the candidate's stored
+ * evidence supplies the pipeline's `sources` and the job's blueprint supplies the
+ * role context — so no extra backend endpoint is required.
+ */
+export async function evaluateCandidate(
+  candidateId: string,
+  jobId: string,
+): Promise<EvaluationResponse> {
+  const [detail, job] = await Promise.all([getCandidateDetail(candidateId), getJob(jobId)]);
+  return requestV2<EvaluationResponse>("/evaluations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      job_id: jobId,
+      jd_text: job.description || undefined,
+      role_blueprint: job.role_blueprint ?? undefined,
+      sources: assembleSources(detail),
+    }),
+  });
+}
+
+/**
+ * Fetch the candidate graph the evaluation persisted (nodes, edges, evidence
+ * ledger). The `graphId` comes from `EvaluationResponse.meta.graph_id`.
+ */
+export async function getCandidateGraph(graphId: string): Promise<CandidateGraph> {
+  return requestV2<CandidateGraph>(`/graph/${encodeURIComponent(graphId)}`);
 }
