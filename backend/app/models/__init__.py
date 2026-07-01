@@ -10,6 +10,7 @@ from app.models.job import Job
 from app.models.ledger import EvidenceLedgerEntry
 from app.models.ranking import CandidateRanking
 from app.models.reasoning import CandidateReasoning, HiringDecision
+from app.models.recruiter import Recruiter
 from app.models.scoring import (
     CapabilityProfile,
     HiddenTalentProfile,
@@ -20,6 +21,7 @@ from app.models.scoring import (
 __all__ = [
     "Job",
     "Candidate",
+    "Recruiter",
     "Evidence",
     "DocumentArtifactRecord",
     "CapabilityProfile",

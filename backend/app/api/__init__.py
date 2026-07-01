@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api import (
     analysis,
+    auth,
     candidates,
     documents,
     github,
@@ -14,6 +15,7 @@ from app.api import (
 )
 
 api_router = APIRouter(prefix="/api")
+api_router.include_router(auth.router)
 api_router.include_router(jobs.router)
 api_router.include_router(documents.router)
 api_router.include_router(candidates.router)

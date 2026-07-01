@@ -18,8 +18,14 @@ class Job(Base):
     description: Mapped[str] = mapped_column(Text)
     role_blueprint: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    # Owning recruiter. Nullable so pre-auth (legacy) jobs remain valid; new jobs
+    # are always created with an owner.
+    recruiter_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recruiters.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    recruiter: Mapped["Recruiter | None"] = relationship(back_populates="jobs")  # noqa: F821
     candidates: Mapped[list["Candidate"]] = relationship(back_populates="job")
     rankings: Mapped[list["Ranking"]] = relationship(back_populates="job")
 

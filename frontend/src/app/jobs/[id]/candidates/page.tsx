@@ -1,6 +1,7 @@
 "use client";
 
 import { listJobCandidates, uploadCandidate } from "@/lib/api";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import type { CandidateListItem } from "@/lib/types";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -23,6 +24,7 @@ const SOURCE_CHIPS: { key: keyof CandidateListItem; label: string }[] = [
 ];
 
 export default function CandidateUploadPage() {
+  const authed = useRequireAuth();
   const params = useParams();
   const jobId = params.id as string;
 
@@ -47,8 +49,8 @@ export default function CandidateUploadPage() {
   }, [jobId]);
 
   useEffect(() => {
-    loadCandidates();
-  }, [loadCandidates]);
+    if (authed) loadCandidates();
+  }, [authed, loadCandidates]);
 
   useEffect(() => {
     if (!candidates.some((c) => !c.analyzed)) return;
@@ -86,6 +88,14 @@ export default function CandidateUploadPage() {
   }
 
   const pending = candidates.filter((c) => !c.analyzed).length;
+
+  if (!authed) {
+    return (
+      <div className="mx-auto flex max-w-3xl items-center justify-center px-6 py-32 text-white/50">
+        Redirecting to sign in…
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">

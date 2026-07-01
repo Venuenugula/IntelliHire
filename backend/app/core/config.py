@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Recruiter authentication (JWT). Override jwt_secret_key in production via
+    # JWT_SECRET_KEY in .env / .env.local — the default is for local dev only.
+    jwt_secret_key: str = "dev-insecure-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24  # 24h
+
     # GitHub intelligence (delulu pipeline)
     github_token: str = ""
     # Cache/analytics store. Postgres (Neon) in production; SQLite for local/tests.

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserMenu } from "./UserMenu";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -17,7 +18,7 @@ export function Navbar() {
           </span>
           <span className="text-lg font-bold tracking-[0.2em] text-white">DELULU</span>
         </Link>
-        <nav className="flex gap-7 text-sm font-medium">
+        <nav className="flex items-center gap-7 text-sm font-medium">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -27,6 +28,7 @@ export function Navbar() {
               {item.label}
             </Link>
           ))}
+          <UserMenu />
         </nav>
       </div>
     </header>

@@ -2,11 +2,13 @@
 
 import { NeuralOrb } from "@/components/ui/NeuralOrb";
 import { createJob } from "@/lib/api";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function NewJobPage() {
   const router = useRouter();
+  const authed = useRequireAuth();
   const [title, setTitle] = useState("AI Engineer");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +26,14 @@ export default function NewJobPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!authed) {
+    return (
+      <div className="mx-auto flex max-w-6xl items-center justify-center px-6 py-32 text-white/50">
+        Redirecting to sign in…
+      </div>
+    );
   }
 
   return (
