@@ -47,6 +47,13 @@ export default function DashboardPage() {
     }
   }
 
+  // Honest, live aggregates from the jobs we already fetched — no fabricated numbers.
+  const candidateCount = jobs.reduce((sum, j) => sum + (j.candidate_count ?? 0), 0);
+  const activeRoles = jobs.filter((j) => (j.candidate_count ?? 0) > 0).length;
+  const recentJobs = [...jobs]
+    .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
+    .slice(0, 4);
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
       <div className="mb-10 flex items-end justify-between">
@@ -112,26 +119,39 @@ export default function DashboardPage() {
 
         {/* Visual column */}
         <div className="space-y-6">
-          <AnalyticsPreview jobCount={jobs.length} />
+          <AnalyticsPreview
+            jobCount={jobs.length}
+            candidateCount={candidateCount}
+            activeRoles={activeRoles}
+          />
           <div className="glass p-5">
             <h3 className="mb-3 text-lg font-semibold text-white">Visualizations</h3>
             <GlobeWire />
           </div>
-          <ActivityTimeline />
+          <RecentRoles jobs={recentJobs} />
         </div>
       </div>
     </div>
   );
 }
 
-function AnalyticsPreview({ jobCount }: { jobCount: number }) {
+function AnalyticsPreview({
+  jobCount,
+  candidateCount,
+  activeRoles,
+}: {
+  jobCount: number;
+  candidateCount: number;
+  activeRoles: number;
+}) {
+  const avgPerRole = jobCount > 0 ? Math.round((candidateCount / jobCount) * 10) / 10 : 0;
   return (
     <div className="glass relative overflow-hidden p-5">
       <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-600/30 blur-2xl" />
       <p className="text-xs uppercase tracking-widest text-white/40">Intelligence dashboard</p>
       <div className="mt-3 flex items-end gap-2">
         <span className="text-3xl font-bold text-white">{jobCount}</span>
-        <span className="pb-1 text-xs text-emerald-300">active roles</span>
+        <span className="pb-1 text-xs text-emerald-300">open role{jobCount === 1 ? "" : "s"}</span>
       </div>
       <svg viewBox="0 0 240 70" className="mt-3 w-full">
         <defs>
@@ -145,16 +165,16 @@ function AnalyticsPreview({ jobCount }: { jobCount: number }) {
       </svg>
       <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
         <div className="rounded-lg bg-white/5 py-2">
-          <p className="font-semibold text-white">3.28</p>
-          <p className="text-white/40">signal</p>
+          <p className="font-semibold text-white">{candidateCount}</p>
+          <p className="text-white/40">candidate{candidateCount === 1 ? "" : "s"}</p>
         </div>
         <div className="rounded-lg bg-white/5 py-2">
-          <p className="font-semibold text-white">3.2%</p>
-          <p className="text-white/40">lift</p>
+          <p className="font-semibold text-emerald-300">{activeRoles}</p>
+          <p className="text-white/40">active</p>
         </div>
         <div className="rounded-lg bg-white/5 py-2">
-          <p className="font-semibold text-emerald-300">HTI</p>
-          <p className="text-white/40">scored</p>
+          <p className="font-semibold text-white">{avgPerRole}</p>
+          <p className="text-white/40">avg / role</p>
         </div>
       </div>
     </div>
@@ -189,34 +209,54 @@ function GlobeWire() {
   );
 }
 
-function ActivityTimeline() {
-  const items = [
-    { dir: "up", n: 1, ago: "3 days ago" },
-    { dir: "down", n: 2, ago: "2 days ago" },
-    { dir: "up", n: 1, ago: "3 days ago" },
-  ];
+// Relative "time ago" for recent-activity labels. Client-only widget, so using
+// the current time here is safe (no SSR hydration concern).
+function timeAgo(iso?: string): string {
+  if (!iso) return "recently";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "recently";
+  const days = Math.floor((Date.now() - then) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? "a month ago" : `${months} months ago`;
+}
+
+function RecentRoles({ jobs }: { jobs: Job[] }) {
   return (
     <div className="glass p-5">
-      <h3 className="mb-4 text-lg font-semibold text-white">Activity Timeline</h3>
-      <div className="space-y-4">
-        {items.map((it, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <span
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${
-                it.dir === "up" ? "bg-emerald-400/15 text-emerald-300" : "bg-amber-400/15 text-amber-300"
-              }`}
-            >
-              {it.dir === "up" ? "↑" : "↓"}
-            </span>
-            <div className="flex-1">
-              <p className="text-sm text-white">
-                Ranking changed {it.dir === "up" ? "↑" : "↓"} {it.n}
-              </p>
-              <p className="text-xs text-white/35">Recent {it.ago}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <h3 className="mb-4 text-lg font-semibold text-white">Recent Roles</h3>
+      {jobs.length === 0 ? (
+        <p className="text-sm text-white/40">No roles yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {jobs.map((job) => {
+            const count = job.candidate_count ?? 0;
+            return (
+              <Link
+                key={job.job_id}
+                href={`/jobs/${job.job_id}/candidates`}
+                className="flex items-center gap-3 rounded-lg transition hover:bg-white/[0.03]"
+              >
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${
+                    count > 0 ? "bg-emerald-400/15 text-emerald-300" : "bg-violet-400/15 text-violet-300"
+                  }`}
+                >
+                  {count}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-white">{job.title}</p>
+                  <p className="text-xs text-white/40">
+                    {count} candidate{count === 1 ? "" : "s"} · created {timeAgo(job.created_at)}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
