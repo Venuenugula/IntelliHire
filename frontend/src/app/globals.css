@@ -139,3 +139,16 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
 }
+
+/* Respect users who prefer reduced motion — calm the always-on cosmic motion
+   and transitions without changing the default visual identity. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,12 +1,5 @@
 import type { CandidateSummary, SourceSummary } from "@/lib/types";
-
-const SOURCE_ICON: Record<string, string> = {
-  github: "🐙",
-  leetcode: "🧩",
-  linkedin: "💼",
-  portfolio: "🌐",
-  resume: "📄",
-};
+import { sourceIcon } from "@/lib/sources";
 
 function verdictClasses(verdict: string): string {
   if (verdict.startsWith("Strong")) return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
@@ -19,7 +12,7 @@ function SourceCard({ src }: { src: SourceSummary }) {
     return (
       <div className="rounded-xl border border-dashed border-white/12 bg-white/[0.02] p-4">
         <div className="mb-1 flex items-center gap-2">
-          <span className="text-lg opacity-60">{SOURCE_ICON[src.source] ?? "•"}</span>
+          <span className="text-lg opacity-60">{sourceIcon(src.source)}</span>
           <h3 className="font-semibold text-white/55">{src.title}</h3>
           <span className="ml-auto rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/45">
             Not available
@@ -33,7 +26,7 @@ function SourceCard({ src }: { src: SourceSummary }) {
   return (
     <div className="glass glass-hover p-4">
       <div className="mb-1 flex items-center gap-2">
-        <span className="text-lg">{SOURCE_ICON[src.source] ?? "•"}</span>
+        <span className="text-lg">{sourceIcon(src.source)}</span>
         <h3 className="font-semibold text-white">{src.title}</h3>
       </div>
       <p className="mb-3 text-xs text-white/45">{src.headline}</p>

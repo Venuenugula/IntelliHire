@@ -1,8 +1,9 @@
 "use client";
 
-import { listJobCandidates, uploadCandidate } from "@/lib/api";
+import { getJob, listJobCandidates, uploadCandidate } from "@/lib/api";
+import { RoleDNA } from "@/components/role/RoleDNA";
 import { useRequireAuth } from "@/lib/useRequireAuth";
-import type { CandidateListItem } from "@/lib/types";
+import type { CandidateListItem, Job } from "@/lib/types";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -33,6 +34,7 @@ export default function CandidateUploadPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
+  const [job, setJob] = useState<Job | null>(null);
 
   const [links, setLinks] = useState({
     github_url: "",
@@ -51,6 +53,14 @@ export default function CandidateUploadPage() {
   useEffect(() => {
     if (authed) loadCandidates();
   }, [authed, loadCandidates]);
+
+  // Load the job so we can surface its Role DNA above the upload flow.
+  useEffect(() => {
+    if (!authed) return;
+    getJob(jobId)
+      .then(setJob)
+      .catch(() => setJob(null));
+  }, [authed, jobId]);
 
   useEffect(() => {
     if (!candidates.some((c) => !c.analyzed)) return;
@@ -108,6 +118,12 @@ export default function CandidateUploadPage() {
           View Rankings →
         </Link>
       </div>
+
+      {job?.role_blueprint && (
+        <div className="mb-8">
+          <RoleDNA blueprint={job.role_blueprint} />
+        </div>
+      )}
 
       <form onSubmit={handleUpload} className="space-y-5">
         {/* Glowing drop zone */}
@@ -189,7 +205,7 @@ export default function CandidateUploadPage() {
             {candidates.map((c) => (
               <div key={c.candidate_id} className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <div className="min-w-0">
-                  <Link href={`/candidates/${c.candidate_id}`} className="font-medium text-white hover:text-violet-300">
+                  <Link href={`/candidates/${c.candidate_id}?job=${jobId}`} className="font-medium text-white hover:text-violet-300">
                     {c.name}
                   </Link>
                   {c.email && <p className="truncate text-xs text-white/40">{c.email}</p>}
