@@ -33,7 +33,8 @@ function Bar({ value, tone }: { value: number; tone: string }) {
 }
 
 export function RankingTable({ rankings, jobId }: RankingTableProps) {
-  void jobId;
+  // Carry the job context to the candidate profile so it can run the evaluation.
+  const candidateHref = (candidateId: string) => `/candidates/${candidateId}?job=${jobId}`;
   if (rankings.length === 0) {
     return (
       <div className="glass border-dashed p-8 text-center text-white/45">
@@ -68,7 +69,7 @@ export function RankingTable({ rankings, jobId }: RankingTableProps) {
                 </td>
                 <td className="px-5 py-3 text-white/70">{r.confidence.toFixed(1)}</td>
                 <td className="px-5 py-3">
-                  <Link href={`/candidates/${r.candidate_id}`} className="text-violet-300 hover:text-violet-200">
+                  <Link href={candidateHref(r.candidate_id)} className="text-violet-300 hover:text-violet-200">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M14 5h5v5M19 5l-9 9M19 14v5H5V5h5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -98,7 +99,7 @@ export function RankingTable({ rankings, jobId }: RankingTableProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
                   <Link
-                    href={`/candidates/${r.candidate_id}`}
+                    href={candidateHref(r.candidate_id)}
                     className="truncate text-lg font-semibold text-white hover:text-violet-300"
                   >
                     {r.candidate}
@@ -142,7 +143,7 @@ export function RankingTable({ rankings, jobId }: RankingTableProps) {
 
             <div className="mt-4 flex justify-end">
               <Link
-                href={`/candidates/${r.candidate_id}`}
+                href={candidateHref(r.candidate_id)}
                 className="btn-ghost rounded-lg px-4 py-1.5 text-xs font-medium text-white/80"
               >
                 {r.recommendation || "Review"} →
