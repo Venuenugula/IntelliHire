@@ -8,7 +8,7 @@ other legacy tables, are assumed to already exist (they are managed by
 only the new v2 surface.
 
 Revision ID: 0001_v2_persistence
-Revises:
+Revises: 0000_initial_schema
 Create Date: 2026-06-28
 
 """
@@ -21,7 +21,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0001_v2_persistence"
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = "0000_initial_schema"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

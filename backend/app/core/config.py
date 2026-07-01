@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     debug: bool = False
     database_url: str = "postgresql+asyncpg://delulu:delulu@localhost:5432/delulu"
     database_url_sync: str = "postgresql://delulu:delulu@localhost:5432/delulu"
+    # Unpooled (direct) sync URL for Alembic/DDL only. On Neon this is the same
+    # host as database_url_sync WITHOUT the "-pooler" suffix. DDL must not run
+    # through PgBouncer transaction pooling (no session continuity / advisory
+    # locks). Empty string => fall back to database_url_sync (backward compatible).
+    direct_url: str = ""
+
+    @property
+    def alembic_url(self) -> str:
+        """Sync URL Alembic should use: direct if provided, else pooled sync."""
+        return self.direct_url or self.database_url_sync
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
     gemini_api_key: str = ""
@@ -22,7 +32,12 @@ class Settings(BaseSettings):
 
     # GitHub intelligence (delulu pipeline)
     github_token: str = ""
+    # Cache/analytics store. Postgres (Neon) in production; SQLite for local/tests.
+    # When Postgres, github_intel lives in its own schema (below) reached via
+    # search_path over a DIRECT (unpooled) connection — search_path does not
+    # survive PgBouncer transaction pooling.
     github_intel_db_url: str = "sqlite:///./github_intel.db"
+    github_intel_schema: str = "github_intel"
     top_n_repos: int = 3
     max_fetch_files: int = 40
     fetch_git_history_for_all: bool = False
