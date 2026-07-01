@@ -24,20 +24,47 @@ down_revision: Union[str, None] = "0001_v2_persistence"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-# (table, old auto-name, new convention name)
-_RENAMES = [
-    ("capability_profiles", "capability_profiles_candidate_id_key", "uq_capability_profiles_candidate_id"),
-    ("hidden_talent_profiles", "hidden_talent_profiles_candidate_id_key", "uq_hidden_talent_profiles_candidate_id"),
-    ("rankings", "rankings_candidate_id_key", "uq_rankings_candidate_id"),
-    ("risk_profiles", "risk_profiles_candidate_id_key", "uq_risk_profiles_candidate_id"),
-]
+# Tables whose candidate_id UNIQUE constraint is being normalized. The convention
+# name is uq_<table>_candidate_id; the Postgres auto-name is <table>_candidate_id_key.
+_TABLES = ["capability_profiles", "hidden_talent_profiles", "rankings", "risk_profiles"]
+
+
+def _rename_candidate_id_unique(table: str, target: str) -> None:
+    """Rename the single-column UNIQUE(candidate_id) constraint to ``target``.
+
+    Environment-independent: finds whatever the constraint is currently named and
+    renames it only if it differs. This is required because on a create_all-built
+    database the constraint is auto-named (<table>_candidate_id_key), while on a
+    migration-built database Alembic already applies the naming convention
+    (uq_<table>_candidate_id). A hard-coded "rename FROM <old>" would fail on one
+    of the two. No-op when already at ``target``.
+    """
+    op.execute(
+        f"""
+        DO $do$
+        DECLARE cn text;
+        BEGIN
+          SELECT c.conname INTO cn
+          FROM pg_constraint c
+          WHERE c.conrelid = '{table}'::regclass AND c.contype = 'u'
+            AND (SELECT array_agg(a.attname::text ORDER BY a.attname)
+                 FROM pg_attribute a
+                 WHERE a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey))
+                = ARRAY['candidate_id'];
+          IF cn IS NOT NULL AND cn <> '{target}' THEN
+            EXECUTE format('ALTER TABLE {table} RENAME CONSTRAINT %I TO %I', cn, '{target}');
+          END IF;
+        END
+        $do$;
+        """
+    )
 
 
 def upgrade() -> None:
-    for table, old, new in _RENAMES:
-        op.execute(f'ALTER TABLE {table} RENAME CONSTRAINT "{old}" TO "{new}"')
+    for table in _TABLES:
+        _rename_candidate_id_unique(table, f"uq_{table}_candidate_id")
 
 
 def downgrade() -> None:
-    for table, old, new in _RENAMES:
-        op.execute(f'ALTER TABLE {table} RENAME CONSTRAINT "{new}" TO "{old}"')
+    for table in _TABLES:
+        _rename_candidate_id_unique(table, f"{table}_candidate_id_key")

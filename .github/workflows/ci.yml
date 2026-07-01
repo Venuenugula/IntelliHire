@@ -6,7 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # Fast smoke: the app imports (catches import-time / wiring breakage cheaply).
+  # ---------------------------------------------------------------------------
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -17,9 +25,174 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
+      # app.main import triggers no DB I/O (init_db runs in the lifespan, not at
+      # import), so this stays green without a database.
       - run: python -c "from app.main import app; print(app.title)"
 
+  # ---------------------------------------------------------------------------
+  # Advisory lint + type check. continue-on-error until the codebase has a clean
+  # baseline; then remove continue-on-error to make these blocking gates.
+  # ---------------------------------------------------------------------------
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Ruff (lint)
+        continue-on-error: true
+        run: ruff check .
+      - name: Mypy (type check)
+        continue-on-error: true
+        run: mypy app
+
+  # ---------------------------------------------------------------------------
+  # THE core gate: prove BOTH Alembic trees build a database from scratch on a
+  # vanilla Postgres, that models == migrations (alembic check), that there is a
+  # single head, and that the suite passes against a real database.
+  # Runs on every PR and push. No external secrets — works on forks.
+  # ---------------------------------------------------------------------------
+  migrations:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: delulu
+          POSTGRES_PASSWORD: delulu
+          POSTGRES_DB: delulu
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U delulu"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # App runtime (async) + Alembic (sync/direct). All point at the service
+      # container. DIRECT_URL == sync here because there is no pooler in CI.
+      DATABASE_URL: postgresql+asyncpg://delulu:delulu@localhost:5432/delulu
+      DATABASE_URL_SYNC: postgresql://delulu:delulu@localhost:5432/delulu
+      DIRECT_URL: postgresql://delulu:delulu@localhost:5432/delulu
+      # github_intel must be Postgres so its schema-qualified metadata engages.
+      GITHUB_INTEL_DB_URL: postgresql://delulu:delulu@localhost:5432/delulu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+
+      # Single-head guard: multiple heads mean a bad merge of migration branches.
+      - name: Assert single migration head (main lineage)
+        run: test "$(alembic heads | grep -c '(head)')" -eq 1
+
+      # Fresh provisioning: the container DB starts EMPTY. If these succeed, a new
+      # environment can be built from Alembic alone (no create_all anywhere).
+      - name: Apply main migrations from scratch
+        run: alembic upgrade head
+      - name: Apply github_intel migrations from scratch
+        run: alembic -c alembic_gh.ini upgrade head
+
+      # Drift gates: models must equal what the migrations produced.
+      - name: alembic check (main)
+        run: alembic check
+      - name: alembic check (github_intel)
+        run: alembic -c alembic_gh.ini check
+
+      # Reversibility smoke: full downgrade of the main lineage must render + run.
+      - name: Downgrade/upgrade round-trip (main)
+        run: |
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+  # ---------------------------------------------------------------------------
+  # Production-identical validation against a real Neon branch (pooler, version,
+  # extensions). Opt-in: set repo variable ENABLE_NEON_CI=true and secrets
+  # NEON_API_KEY + NEON_PROJECT_ID. Runs only on push to main so fork PRs never
+  # need the secret. The ephemeral branch is always deleted.
+  # ---------------------------------------------------------------------------
+  migrations-neon:
+    if: ${{ github.event_name == 'push' && vars.ENABLE_NEON_CI == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Create ephemeral Neon branch
+        id: neon
+        uses: neondatabase/create-branch-action@v5
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch_name: ci-${{ github.run_id }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Migrate + check against the Neon branch
+        env:
+          # The action returns a connection string for the branch; production
+          # parity uses the pooled endpoint for runtime and direct for DDL. Here
+          # both point at the branch (the branch is disposable).
+          DATABASE_URL_SYNC: ${{ steps.neon.outputs.db_url }}
+          DIRECT_URL: ${{ steps.neon.outputs.db_url }}
+          GITHUB_INTEL_DB_URL: ${{ steps.neon.outputs.db_url }}
+        run: |
+          alembic upgrade head
+          alembic -c alembic_gh.ini upgrade head
+          alembic check
+          alembic -c alembic_gh.ini check
+
+      - name: Delete ephemeral Neon branch
+        if: always()
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: ci-${{ github.run_id }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+  # ---------------------------------------------------------------------------
+  # Build the deployable backend image (build only — no push). This is the
+  # deployment artifact; a separate CD workflow would tag/push/deploy it.
+  # ---------------------------------------------------------------------------
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, migrations]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: delulu-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Frontend (unchanged).
+  # ---------------------------------------------------------------------------
   frontend:
     runs-on: ubuntu-latest
     defaults:

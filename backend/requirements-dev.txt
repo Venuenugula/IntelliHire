@@ -1,3 +1,7 @@
 # Dev / test dependencies (kept separate from runtime requirements.txt).
 # Run the suite from backend/ with:  python -m pytest tests/ -q
 pytest>=8.0
+# Lint + type check. Advisory in CI until a clean baseline is established, then
+# flip the CI steps to blocking (remove continue-on-error).
+ruff>=0.6
+mypy>=1.11
