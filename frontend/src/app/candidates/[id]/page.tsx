@@ -1,11 +1,23 @@
 "use client";
 
-import { CapabilityRadar } from "@/components/charts/CapabilityRadar";
+import dynamic from "next/dynamic";
+import { EvidenceSection } from "@/components/evidence/EvidenceSection";
+import { RecommendationHeader } from "@/components/evaluation/RecommendationHeader";
+import { ReasoningDrawer } from "@/components/evaluation/ReasoningDrawer";
+import { DecisionCard } from "@/components/evaluation/DecisionCard";
+import { TalentGraphSection } from "@/components/graph/TalentGraphSection";
 import { getCandidateDetail } from "@/lib/api";
+import { useEvaluation } from "@/lib/useEvaluation";
 import type { CandidateDetail } from "@/lib/types";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+
+// recharts is heavy — load the capability radar only when it actually renders.
+const CapabilityRadar = dynamic(
+  () => import("@/components/charts/CapabilityRadar").then((m) => m.CapabilityRadar),
+  { ssr: false, loading: () => <div className="h-80 w-full animate-pulse rounded-xl bg-white/[0.03]" /> },
+);
 
 const SOURCE_NODES = [
   { label: "GitHub", x: "6%", y: "60%" },
@@ -17,9 +29,15 @@ const SOURCE_NODES = [
 export default function CandidateDetailPage() {
   const params = useParams();
   const candidateId = params.id as string;
+  // Job context (threaded from ranking / candidate-list links) lets us run the v2
+  // evaluation. Absent it, the profile still renders — just without the verdict.
+  const jobId = useSearchParams().get("job");
+  const { evaluation, status, retry } = useEvaluation(candidateId, jobId);
+  const graphId = typeof evaluation?.meta?.graph_id === "string" ? evaluation.meta.graph_id : null;
   const [detail, setDetail] = useState<CandidateDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [explainOpen, setExplainOpen] = useState(false);
 
   useEffect(() => {
     getCandidateDetail(candidateId)
@@ -38,7 +56,13 @@ export default function CandidateDetailPage() {
         ← Back to dashboard
       </Link>
 
-      <h1 className="mb-8 text-4xl font-bold gradient-text">{detail.name}</h1>
+      <RecommendationHeader
+        name={detail.name}
+        status={status}
+        evaluation={evaluation}
+        onRetry={retry}
+        onExplain={evaluation ? () => setExplainOpen(true) : undefined}
+      />
 
       <div className="grid gap-7 lg:grid-cols-2">
         {/* Capability + constellation */}
@@ -117,7 +141,7 @@ export default function CandidateDetailPage() {
                 <h2 className="text-lg font-semibold text-white">Explanation</h2>
                 {detail.summary && (
                   <Link
-                    href={`/candidates/${candidateId}/summary`}
+                    href={`/candidates/${candidateId}/summary${jobId ? `?job=${jobId}` : ""}`}
                     className="btn-glow shrink-0 rounded-lg px-4 py-2 text-sm font-medium"
                   >
                     📋 Brief Summary →
@@ -149,6 +173,23 @@ export default function CandidateDetailPage() {
           )}
         </div>
       </div>
+
+      {detail.standardized_evidence && detail.standardized_evidence.length > 0 && (
+        <EvidenceSection evidence={detail.standardized_evidence} />
+      )}
+
+      {status === "ready" && evaluation && <DecisionCard evaluation={evaluation} detail={detail} />}
+
+      {status === "ready" && graphId && <TalentGraphSection graphId={graphId} />}
+
+      {evaluation && (
+        <ReasoningDrawer
+          open={explainOpen}
+          onClose={() => setExplainOpen(false)}
+          evaluation={evaluation}
+          detail={detail}
+        />
+      )}
     </div>
   );
 }
