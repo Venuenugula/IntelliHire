@@ -24,6 +24,7 @@ from app.api.v2.evaluation_schemas import (
     RankingRequest,
     RankingResponse,
 )
+from app.intelligence.candidate_graph import graph_registry
 from app.runtime import deps
 from app.runtime.candidate_evaluation_pipeline import CandidateEvaluationPipeline
 from app.shared.constants import SUBMISSION_SIZE
@@ -41,6 +42,9 @@ def _to_evaluation_response(ctx: PipelineContext) -> EvaluationResponse:
     reasoning_meta = (ctx.reasoning.metadata if ctx.reasoning else {}) or {}
     meta = {
         "graph_enabled": not graph_meta.get("graph_disabled", False),
+        # graph_id lets the frontend retrieve the already-built graph via the
+        # existing /v2/graph/{graph_id} query endpoints. None when no graph.
+        "graph_id": ctx.graph.graph_id if ctx.graph else None,
         "reasoning_mode": reasoning_meta.get("reasoning_mode", "graph"),
         "total_ms": ctx.telemetry.get("total_ms"),
         "stages": {k: v.get("status") for k, v in ctx.telemetry.get("stages", {}).items()},
@@ -105,6 +109,10 @@ class EvaluationService:
             role_dna=role,
             raw_sources=request.sources,
         )
+        # Expose the graph already computed during evaluation for retrieval by the
+        # frontend — persisted through the existing registry, no new storage.
+        if ctx.graph is not None:
+            graph_registry.put(ctx.graph)
         return _to_evaluation_response(ctx)
 
     async def rank(self, request: RankingRequest) -> RankingResponse:
