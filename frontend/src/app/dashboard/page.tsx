@@ -1,22 +1,33 @@
 "use client";
 
 import { deleteJob, listJobs } from "@/lib/api";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import type { Job } from "@/lib/types";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
+  const authed = useRequireAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!authed) return;
     listJobs()
       .then(setJobs)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load jobs"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [authed]);
+
+  if (!authed) {
+    return (
+      <div className="mx-auto flex max-w-6xl items-center justify-center px-6 py-32 text-white/50">
+        Redirecting to sign in…
+      </div>
+    );
+  }
 
   async function handleDelete(job: Job) {
     const count = job.candidate_count ?? 0;

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.auth import get_current_recruiter
 from app.core.database import get_db
 from app.models import (
     Candidate,
@@ -13,6 +14,7 @@ from app.models import (
     HiddenTalentProfile,
     Job,
     Ranking,
+    Recruiter,
     RiskProfile,
 )
 from app.schemas.candidate import CandidateListItem
@@ -22,14 +24,31 @@ from app.services.jd.jd_parser import parse_job_description
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
+async def _get_owned_job(job_id: uuid.UUID, recruiter: Recruiter, db: AsyncSession) -> Job:
+    """Fetch a job that belongs to ``recruiter``, else 404.
+
+    Uses 404 (not 403) for jobs owned by someone else so we don't leak which
+    job ids exist to a recruiter who doesn't own them.
+    """
+    job = await db.get(Job, job_id)
+    if not job or job.recruiter_id != recruiter.id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
 @router.post("", response_model=JobResponse)
-async def create_job(payload: JobCreate, db: AsyncSession = Depends(get_db)):
+async def create_job(
+    payload: JobCreate,
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+):
     role_blueprint = await parse_job_description(payload.title, payload.description)
     blueprint_payload = role_blueprint.model_dump(mode="json")
     job = Job(
         title=payload.title,
         description=payload.description,
         role_blueprint=blueprint_payload,
+        recruiter_id=recruiter.id,
     )
     db.add(job)
     await db.commit()
@@ -45,9 +64,16 @@ async def create_job(payload: JobCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("", response_model=list[JobResponse])
-async def list_jobs(db: AsyncSession = Depends(get_db)):
-    """List all jobs, newest first, with candidate counts."""
-    result = await db.execute(select(Job).order_by(Job.created_at.desc()))
+async def list_jobs(
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+):
+    """List the current recruiter's jobs, newest first, with candidate counts."""
+    result = await db.execute(
+        select(Job)
+        .where(Job.recruiter_id == recruiter.id)
+        .order_by(Job.created_at.desc())
+    )
     jobs = result.scalars().all()
 
     count_rows = await db.execute(
@@ -69,11 +95,13 @@ async def list_jobs(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{job_id}/candidates", response_model=list[CandidateListItem])
-async def list_job_candidates(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def list_job_candidates(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+):
     """List candidates (uploaded applications) for a job, newest first."""
-    job = await db.get(Job, job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    await _get_owned_job(job_id, recruiter, db)
 
     result = await db.execute(
         select(Candidate)
@@ -101,10 +129,12 @@ async def list_job_candidates(job_id: uuid.UUID, db: AsyncSession = Depends(get_
 
 
 @router.get("/{job_id}", response_model=JobResponse)
-async def get_job(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    job = await db.get(Job, job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+async def get_job(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+):
+    job = await _get_owned_job(job_id, recruiter, db)
     return JobResponse(
         job_id=job.id,
         title=job.title,
@@ -116,11 +146,13 @@ async def get_job(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/{job_id}")
-async def delete_job(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_job(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+):
     """Delete a job and all of its candidates and their analysis data."""
-    job = await db.get(Job, job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = await _get_owned_job(job_id, recruiter, db)
 
     rows = await db.execute(
         select(Candidate.id, Candidate.resume_path).where(Candidate.job_id == job_id)

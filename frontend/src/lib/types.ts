@@ -1,3 +1,16 @@
+export interface Recruiter {
+  id: string;
+  company_name: string;
+  email: string;
+  created_at?: string;
+}
+
+export interface AuthToken {
+  access_token: string;
+  token_type: string;
+  recruiter: Recruiter;
+}
+
 export interface RoleBlueprint {
   role: string;
   skills: string[];

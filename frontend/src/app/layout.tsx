@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/Navbar";
+import { ProfileBadge } from "@/components/ProfileBadge";
 import { CosmicBackground } from "@/components/ui/CosmicBackground";
 import { Sparkle } from "@/components/ui/Sparkle";
 import "./globals.css";
@@ -35,10 +36,8 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1">{children}</main>
         <Sparkle />
-        {/* persistent profile avatar, bottom-left (matches mockups) */}
-        <div className="fixed bottom-6 left-6 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm font-semibold text-white/70 backdrop-blur">
-          N
-        </div>
+        {/* persistent profile avatar, bottom-left — reflects the signed-in user */}
+        <ProfileBadge />
       </body>
     </html>
   );
