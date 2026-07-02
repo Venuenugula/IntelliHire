@@ -1,0 +1,205 @@
+/* Candidate Intelligence Workspace */
+
+.ci-workspace {
+  --ci-bg: #fafbfd;
+  --ci-card: #ffffff;
+  --ci-border: #e8edf5;
+  --ci-primary: #6d5df6;
+  --ci-success: #22c55e;
+  --ci-warning: #f59e0b;
+  --ci-danger: #ef4444;
+  --ci-muted: #64748b;
+  --ci-text: #0f172a;
+  --ci-radius: 24px;
+  --ci-pad: 32px;
+  --ci-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.05);
+  background: var(--ci-bg);
+  min-height: 100%;
+  padding: 32px;
+}
+
+.ci-surface {
+  background: var(--ci-card);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius);
+  box-shadow: var(--ci-shadow);
+  padding: var(--ci-pad);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.ci-surface--hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(15, 23, 42, 0.04), 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.ci-surface--compact {
+  padding: 24px;
+  border-radius: 20px;
+}
+
+.ci-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ci-muted);
+}
+
+.ci-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ci-text);
+  letter-spacing: -0.02em;
+}
+
+.ci-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--ci-border);
+  background: var(--surface-subtle);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ci-text);
+  transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+.ci-chip:hover {
+  transform: translateY(-1px);
+  border-color: #d4dcf0;
+  background: var(--card);
+}
+
+.ci-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--ci-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 20px;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.ci-btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px rgba(109, 93, 246, 0.28);
+}
+
+.ci-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--ci-border);
+  background: var(--card);
+  color: var(--ci-text);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  transition: transform 200ms ease, border-color 200ms ease;
+}
+
+.ci-btn-ghost:hover {
+  transform: scale(1.02);
+  border-color: #cdd6e6;
+}
+
+.ci-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.ci-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 600ms ease;
+}
+
+@keyframes ci-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ci-animate-in {
+  animation: ci-fade-up 400ms ease forwards;
+}
+
+.ci-stagger > * {
+  opacity: 0;
+  animation: ci-fade-up 400ms ease forwards;
+}
+.ci-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.ci-stagger > *:nth-child(2) { animation-delay: 70ms; }
+.ci-stagger > *:nth-child(3) { animation-delay: 140ms; }
+.ci-stagger > *:nth-child(4) { animation-delay: 210ms; }
+.ci-stagger > *:nth-child(5) { animation-delay: 280ms; }
+.ci-evidence-tab .card {
+  border-radius: 20px;
+  border-color: var(--ci-border);
+  box-shadow: var(--ci-shadow);
+}
+
+.ci-evidence-tab h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ci-text);
+}
+
+.app-shell[data-theme="dark"] .ci-workspace {
+  --ci-bg: var(--background);
+  --ci-card: var(--card);
+  --ci-border: var(--border);
+  --ci-muted: var(--muted);
+  --ci-text: var(--foreground);
+  --ci-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.app-shell[data-theme="dark"] .ci-surface--hover:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.app-shell[data-theme="dark"] .ci-chip {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-shell[data-theme="dark"] .ci-status--success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #6ee7b7;
+}
+
+.app-shell[data-theme="dark"] .ci-status--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+}
+
+.app-shell[data-theme="dark"] .ci-status--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.app-shell[data-theme="dark"] .ci-btn-ghost {
+  background: var(--field-bg);
+}
+
+.app-shell[data-theme="dark"] .ci-chip:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-shell[data-theme="dark"] .ci-bar-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-shell[data-theme="dark"] .ci-status--info {
+  background: rgba(109, 93, 246, 0.15);
+  color: #c4b5fd;
+}
