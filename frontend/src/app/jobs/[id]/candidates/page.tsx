@@ -1,7 +1,7 @@
 "use client";
 
+import { JobTabs, PageHeader } from "@/components/layout/PageHeader";
 import { getJob, listJobCandidates, uploadCandidate } from "@/lib/api";
-import { RoleDNA } from "@/components/role/RoleDNA";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import type { CandidateListItem, Job } from "@/lib/types";
 import Link from "next/link";
@@ -54,12 +54,9 @@ export default function CandidateUploadPage() {
     if (authed) loadCandidates();
   }, [authed, loadCandidates]);
 
-  // Load the job so we can surface its Role DNA above the upload flow.
   useEffect(() => {
     if (!authed) return;
-    getJob(jobId)
-      .then(setJob)
-      .catch(() => setJob(null));
+    getJob(jobId).then(setJob).catch(() => setJob(null));
   }, [authed, jobId]);
 
   useEffect(() => {
@@ -100,45 +97,32 @@ export default function CandidateUploadPage() {
   const pending = candidates.filter((c) => !c.analyzed).length;
 
   if (!authed) {
-    return (
-      <div className="mx-auto flex max-w-3xl items-center justify-center px-6 py-32 text-white/50">
-        Redirecting to sign in…
-      </div>
-    );
+    return <div className="flex items-center justify-center p-32 text-gray-400">Redirecting to sign in…</div>;
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-white">Upload Candidates</h1>
-          <p className="mt-1 font-mono text-xs text-white/40">Job ID: {jobId}</p>
-        </div>
-        <Link href={`/jobs/${jobId}/rankings`} className="text-sm text-violet-300 hover:underline">
-          View Rankings →
-        </Link>
-      </div>
+    <div className="p-8">
+      <PageHeader
+        title={job?.title ?? "Upload Candidates"}
+        subtitle="Add candidates for evidence-based analysis"
+        action={
+          <Link href={`/jobs/${jobId}/rankings`} className="btn-secondary rounded-lg px-4 py-2 text-sm">
+            View Rankings
+          </Link>
+        }
+      />
 
-      {job?.role_blueprint && (
-        <div className="mb-8">
-          <RoleDNA blueprint={job.role_blueprint} />
-        </div>
-      )}
+      <JobTabs jobId={jobId} active="candidates" />
 
       <form onSubmit={handleUpload} className="space-y-5">
-        {/* Glowing drop zone */}
-        <label
-          className={`glass glow-ring relative flex cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden border-dashed py-12 text-center transition ${
-            resume ? "" : ""
-          }`}
-        >
-          <div className="pointer-events-none absolute -left-10 top-0 h-40 w-40 rounded-full bg-violet-600/20 blur-3xl" />
-          <div className="pointer-events-none absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-cyan-500/15 blur-3xl" />
-          <DropArt />
-          <p className="relative text-sm font-medium text-white/80">
+        <label className="card relative flex cursor-pointer flex-col items-center justify-center gap-3 border-dashed py-12 text-center">
+          <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <p className="text-sm font-medium text-gray-700">
             {resume ? resume.name : "Drag & Drop Resume PDF"}
           </p>
-          <p className="relative text-xs text-white/40">PDF — name, email and profile links are auto-extracted</p>
+          <p className="text-xs text-gray-400">PDF — name, email and profile links are auto-extracted</p>
           <input
             key={fileKey}
             type="file"
@@ -149,27 +133,24 @@ export default function CandidateUploadPage() {
           />
         </label>
 
-        {/* manual links */}
-        <div className="glass p-4">
+        <div className="card p-4">
           <button
             type="button"
             onClick={() => setShowLinks((s) => !s)}
-            className="text-sm font-medium text-violet-300 hover:underline"
+            className="text-sm font-medium text-[#7c3aed] hover:underline"
           >
             {showLinks ? "▾" : "▸"} Add profile links manually (optional)
           </button>
           {showLinks && (
             <div className="mt-3 space-y-3">
-              <p className="text-xs text-white/45">
-                Links are read from the resume first. Fill these in only as a fallback — for example
-                when a link is missing from the resume or can&apos;t be extracted.
+              <p className="text-xs text-gray-500">
+                Links are read from the resume first. Fill these in only as a fallback.
               </p>
               {LINK_FIELDS.map(({ field, label, placeholder }) => (
                 <div key={field}>
-                  <label className="mb-1 block text-xs font-medium text-white/55">{label}</label>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">{label}</label>
                   <input
                     type="url"
-                    inputMode="url"
                     value={links[field]}
                     onChange={(e) => setLinks((prev) => ({ ...prev, [field]: e.target.value }))}
                     placeholder={placeholder}
@@ -181,49 +162,39 @@ export default function CandidateUploadPage() {
           )}
         </div>
 
-        <button
-          type="submit"
-          disabled={loading || !resume}
-          className="btn-glow rounded-xl px-6 py-2.5 font-medium disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading || !resume} className="btn-primary rounded-lg px-6 py-2.5 disabled:opacity-50">
           {loading ? "Uploading..." : "Upload Candidate"}
         </button>
       </form>
 
-      {message && <p className="mt-4 text-sm text-white/60">{message}</p>}
+      {message && <p className="mt-4 text-sm text-gray-600">{message}</p>}
 
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Uploaded Applications ({candidates.length})</h2>
-          {pending > 0 && <span className="text-xs text-amber-300">{pending} analyzing…</span>}
+          <h2 className="text-lg font-semibold text-gray-900">Uploaded Applications ({candidates.length})</h2>
+          {pending > 0 && <span className="badge badge-amber">{pending} analyzing…</span>}
         </div>
 
         {candidates.length === 0 ? (
-          <p className="text-sm text-white/45">No candidates uploaded yet.</p>
+          <p className="text-sm text-gray-400">No candidates uploaded yet.</p>
         ) : (
-          <div className="glass divide-y divide-white/5 overflow-hidden">
+          <div className="card divide-y divide-gray-100 overflow-hidden">
             {candidates.map((c) => (
               <div key={c.candidate_id} className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <div className="min-w-0">
-                  <Link href={`/candidates/${c.candidate_id}?job=${jobId}`} className="font-medium text-white hover:text-violet-300">
+                  <Link href={`/candidates/${c.candidate_id}?job=${jobId}`} className="font-medium text-gray-900 hover:text-[#7c3aed]">
                     {c.name}
                   </Link>
-                  {c.email && <p className="truncate text-xs text-white/40">{c.email}</p>}
+                  {c.email && <p className="truncate text-xs text-gray-400">{c.email}</p>}
                 </div>
                 <div className="flex shrink-0 items-center gap-2 text-xs">
                   {c.analyzed ? (
-                    <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-medium text-emerald-300">
-                      Analyzed
-                    </span>
+                    <span className="badge badge-green">Analyzed</span>
                   ) : (
-                    <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 font-medium text-amber-300">
-                      Analyzing…
-                    </span>
+                    <span className="badge badge-amber">Analyzing…</span>
                   )}
                   {SOURCE_CHIPS.filter((s) => c[s.key]).map((s) => (
-                    <span key={s.label} className="chip px-2.5 py-1 text-white/60">
-                      {s.label}
-                    </span>
+                    <span key={s.label} className="chip px-2.5 py-1">{s.label}</span>
                   ))}
                 </div>
               </div>
@@ -231,42 +202,6 @@ export default function CandidateUploadPage() {
           </div>
         )}
       </div>
-
-      <Link
-        href={`/jobs/${jobId}/rankings`}
-        className="btn-ghost mt-8 inline-block rounded-xl px-6 py-3 font-medium"
-      >
-        View Rankings →
-      </Link>
     </div>
-  );
-}
-
-function DropArt() {
-  return (
-    <svg viewBox="0 0 120 60" className="relative h-16 w-40">
-      <g opacity="0.9">
-        <rect x="10" y="22" width="16" height="16" rx="2" fill="#a855f7" opacity="0.7" transform="rotate(8 18 30)" />
-        <rect x="30" y="14" width="14" height="14" rx="2" fill="#c4b5fd" opacity="0.6" />
-        <rect x="20" y="36" width="12" height="12" rx="2" fill="#7c3aed" opacity="0.5" />
-      </g>
-      <g stroke="#94a3b8" strokeWidth="0.6" opacity="0.5">
-        <line x1="78" y1="20" x2="98" y2="14" />
-        <line x1="78" y1="20" x2="98" y2="30" />
-        <line x1="78" y1="40" x2="98" y2="30" />
-        <line x1="78" y1="40" x2="98" y2="46" />
-        <line x1="98" y1="14" x2="112" y2="22" />
-        <line x1="98" y1="46" x2="112" y2="38" />
-      </g>
-      <g fill="#8b5cf6">
-        <circle cx="78" cy="20" r="2.4" />
-        <circle cx="78" cy="40" r="2.4" />
-        <circle cx="98" cy="14" r="2" fill="#22d3ee" />
-        <circle cx="98" cy="30" r="2" fill="#e879f9" />
-        <circle cx="98" cy="46" r="2" fill="#22d3ee" />
-        <circle cx="112" cy="22" r="2" />
-        <circle cx="112" cy="38" r="2" />
-      </g>
-    </svg>
   );
 }
