@@ -1,6 +1,5 @@
 "use client";
 
-import { NeuralOrb } from "@/components/ui/NeuralOrb";
 import { registerRecruiter, setStoredRecruiter, setToken } from "@/lib/api";
 import { nextDestination, useNextSuffix } from "@/lib/useRequireAuth";
 import Link from "next/link";
@@ -33,88 +32,65 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-14">
-      <div className="grid items-center gap-10 lg:grid-cols-2">
-        <div>
-          <p className="mb-4 text-sm font-medium uppercase tracking-[0.35em] text-violet-300">
-            Recruiter Sign Up
-          </p>
-          <h1 className="text-4xl font-bold text-white">Create your account</h1>
-          <p className="mt-2 text-white/50">
-            Start ranking candidates on evidence, not resumes.
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 py-14">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#7c3aed] text-sm font-bold text-white">D</span>
+            <span className="text-xl font-bold text-gray-900">DELULU</span>
+          </Link>
+        </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 max-w-md space-y-6">
+        <div className="card p-8">
+          <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
+          <p className="mt-1 text-sm text-gray-500">Start ranking candidates on evidence, not resumes.</p>
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div>
-              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-white/50">
-                Company Name
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Company Name</label>
               <input
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="field w-full px-4 py-3 text-sm"
+                className="field w-full px-4 py-2.5 text-sm"
                 placeholder="Acme Inc."
                 required
               />
             </div>
             <div>
-              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-white/50">
-                Work Email
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Work Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="field w-full px-4 py-3 text-sm"
+                className="field w-full px-4 py-2.5 text-sm"
                 placeholder="you@company.com"
                 required
               />
             </div>
             <div>
-              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-white/50">
-                Password
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="field w-full px-4 py-3 text-sm"
+                className="field w-full px-4 py-2.5 text-sm"
                 placeholder="At least 8 characters"
                 minLength={8}
                 required
               />
             </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-glow w-full rounded-xl px-6 py-3 font-medium disabled:opacity-60"
-            >
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button type="submit" disabled={loading} className="btn-primary w-full rounded-lg px-6 py-2.5 disabled:opacity-60">
               {loading ? "Creating account..." : "Create Account"}
             </button>
-            <p className="text-sm text-white/50">
+            <p className="text-center text-sm text-gray-500">
               Already have an account?{" "}
-              <Link href={`/login${nextSuffix}`} className="text-violet-300 hover:text-violet-200">
+              <Link href={`/login${nextSuffix}`} className="font-medium text-[#7c3aed] hover:underline">
                 Sign in
               </Link>
             </p>
           </form>
-        </div>
-
-        <div className="glass relative hidden overflow-hidden p-10 lg:block">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-600/25 blur-3xl" />
-          <div className="flex justify-center">
-            <div className="floaty">
-              <NeuralOrb size={300} />
-            </div>
-          </div>
-          <p className="relative mt-8 text-center text-lg font-semibold text-white">
-            We don&apos;t rank resumes. We rank evidence.
-          </p>
-          <p className="relative mt-2 text-center text-sm text-white/50">
-            Deep GitHub, LeetCode &amp; LinkedIn analysis for every candidate.
-          </p>
         </div>
       </div>
     </div>

@@ -1,43 +1,76 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { AISummaryCard } from "@/components/candidate/AISummaryCard";
+import { DecisionHero } from "@/components/candidate/DecisionHero";
+import { EvidenceBreakdown, EvidenceTimeline } from "@/components/candidate/EvidencePanels";
+import { AIReasoningCard, HTICard, NextActionCard } from "@/components/candidate/ReasoningSections";
+import { MissingEvidenceAccordions, RiskBreakdownPanel } from "@/components/candidate/RiskAndGaps";
+import { EvidenceSourceGrid, RiskCards, StrengthChips } from "@/components/candidate/OverviewSections";
 import { EvidenceSection } from "@/components/evidence/EvidenceSection";
-import { RecommendationHeader } from "@/components/evaluation/RecommendationHeader";
-import { ReasoningDrawer } from "@/components/evaluation/ReasoningDrawer";
 import { DecisionCard } from "@/components/evaluation/DecisionCard";
+import { ReasoningDrawer } from "@/components/evaluation/ReasoningDrawer";
 import { TalentGraphSection } from "@/components/graph/TalentGraphSection";
-import { getCandidateDetail } from "@/lib/api";
+import { getCandidateDetail, getJob } from "@/lib/api";
+import {
+  buildEvidenceBreakdown,
+  buildEvidenceTimeline,
+  buildSourceCards,
+  collectRisks,
+  collectStrengths,
+  displayNextAction,
+} from "@/lib/candidatePresentation";
 import { useEvaluation } from "@/lib/useEvaluation";
 import type { CandidateDetail } from "@/lib/types";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import "@/components/candidate/candidate-workspace.css";
 
-// recharts is heavy — load the capability radar only when it actually renders.
 const CapabilityRadar = dynamic(
   () => import("@/components/charts/CapabilityRadar").then((m) => m.CapabilityRadar),
-  { ssr: false, loading: () => <div className="h-80 w-full animate-pulse rounded-xl bg-white/[0.03]" /> },
+  { ssr: false, loading: () => <div className="h-48 w-full animate-pulse rounded-2xl bg-slate-100" /> },
 );
 
-const SOURCE_NODES = [
-  { label: "GitHub", x: "6%", y: "60%" },
-  { label: "Skills", x: "34%", y: "78%" },
-  { label: "LeetCode", x: "16%", y: "92%" },
-  { label: "LinkedIn", x: "40%", y: "100%" },
-];
+function exportEvaluationReport(name: string, evaluation: NonNullable<ReturnType<typeof useEvaluation>["evaluation"]>, detail: CandidateDetail) {
+  const strengths = detail.summary?.overall_strengths ?? detail.explanation?.strengths ?? [];
+  const lines = [
+    "DELULU — Candidate Evaluation",
+    name,
+    "",
+    `Recommendation: ${evaluation.recommendation}`,
+    `Confidence: ${Math.round(evaluation.confidence * 100)}%`,
+    `Fit score: ${Math.round(evaluation.score * 100)}`,
+    `Next action: ${displayNextAction(evaluation.recommendation)}`,
+    "",
+    evaluation.summary || "—",
+    "",
+    "Strengths",
+    ...(strengths.length ? strengths.map((s) => `  • ${s}`) : ["  —"]),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name.replace(/\s+/g, "_")}_evaluation.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function CandidateDetailPage() {
   const params = useParams();
   const candidateId = params.id as string;
-  // Job context (threaded from ranking / candidate-list links) lets us run the v2
-  // evaluation. Absent it, the profile still renders — just without the verdict.
   const jobId = useSearchParams().get("job");
   const { evaluation, status, retry } = useEvaluation(candidateId, jobId);
   const graphId = typeof evaluation?.meta?.graph_id === "string" ? evaluation.meta.graph_id : null;
   const [detail, setDetail] = useState<CandidateDetail | null>(null);
+  const [jobTitle, setJobTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [explainOpen, setExplainOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "evidence" | "graph">("overview");
 
   useEffect(() => {
     getCandidateDetail(candidateId)
@@ -46,141 +79,161 @@ export default function CandidateDetailPage() {
       .finally(() => setLoading(false));
   }, [candidateId]);
 
-  if (loading) return <div className="p-10 text-white/60">Loading…</div>;
-  if (error) return <div className="p-10 text-red-400">{error}</div>;
+  useEffect(() => {
+    if (!jobId) return;
+    getJob(jobId)
+      .then((job) => setJobTitle(job.title))
+      .catch(() => setJobTitle(null));
+  }, [jobId]);
+
+  const handleExport = useCallback(() => {
+    if (!detail || !evaluation) return;
+    exportEvaluationReport(detail.name, evaluation, detail);
+  }, [detail, evaluation]);
+
+  if (loading) return <div className="ci-workspace p-8 text-[var(--ci-muted)]">Loading candidate intelligence…</div>;
+  if (error) return <div className="ci-workspace p-8 text-red-600">{error}</div>;
   if (!detail) return null;
 
+  const strengths = collectStrengths(detail, evaluation);
+  const risks = collectRisks(detail, evaluation);
+  const sources = buildSourceCards(detail);
+  const breakdown = buildEvidenceBreakdown(detail);
+  const timeline = buildEvidenceTimeline(detail, evaluation);
+  const reservations = evaluation?.reservations ?? [];
+  const summaryText = evaluation?.summary ?? detail.explanation?.reason ?? detail.summary?.headline ?? "";
+  const rankingsHref = jobId ? `/jobs/${jobId}/rankings` : null;
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <Link href="/dashboard" className="mb-4 inline-block text-sm text-violet-300 hover:underline">
-        ← Back to dashboard
+    <div className="ci-workspace">
+      <Link
+        href={jobId ? `/jobs/${jobId}/rankings` : "/dashboard"}
+        className="mb-6 inline-flex items-center gap-1 text-sm font-semibold text-[var(--ci-primary)] hover:underline"
+      >
+        ← Back
       </Link>
 
-      <RecommendationHeader
-        name={detail.name}
-        status={status}
+      <DecisionHero
+        detail={detail}
         evaluation={evaluation}
+        status={status}
+        jobTitle={jobTitle}
+        rankingsHref={rankingsHref}
         onRetry={retry}
         onExplain={evaluation ? () => setExplainOpen(true) : undefined}
+        onExport={handleExport}
       />
 
-      <div className="grid gap-7 lg:grid-cols-2">
-        {/* Capability + constellation */}
-        {detail.capability && (
-          <div className="glass relative overflow-hidden p-6">
-            <h2 className="mb-2 text-lg font-semibold text-white">Capability Profile</h2>
-            <CapabilityRadar capability={detail.capability} />
+      <div className="mb-8 flex gap-1 border-b border-[var(--ci-border)]">
+        {(["overview", "evidence", "graph"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2.5 text-sm font-semibold capitalize transition ${
+              activeTab === tab
+                ? "border-b-2 border-[var(--ci-primary)] text-[var(--ci-primary)]"
+                : "text-[var(--ci-muted)] hover:text-[var(--ci-text)]"
+            }`}
+          >
+            {tab === "graph" ? "Skills Graph" : tab}
+          </button>
+        ))}
+      </div>
 
-            {/* glowing score bubble */}
-            <div className="mt-2 flex justify-center">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full">
-                <div className="absolute inset-0 rounded-full bg-violet-600/30 blur-lg pulse-glow" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-violet-400/40 bg-white/[0.04] text-xl font-bold text-white">
-                  {detail.capability.capability_score.toFixed(1)}
-                </div>
-              </div>
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {summaryText && (
+            <AISummaryCard
+              summary={summaryText}
+              recommendation={evaluation ? displayNextAction(evaluation.recommendation) : undefined}
+            />
+          )}
+
+          <div className="grid gap-6 xl:grid-cols-12">
+            <div className="xl:col-span-7">
+              <EvidenceSourceGrid sources={sources} />
             </div>
-
-            {/* source constellation */}
-            <div className="relative mt-6 h-28">
-              <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 120" preserveAspectRatio="none">
-                <g stroke="rgba(168,85,247,0.35)" strokeWidth="1" fill="none">
-                  <path d="M40 40 C 120 20, 180 80, 250 70" />
-                  <path d="M60 90 C 140 60, 200 100, 300 96" />
-                  <path d="M250 70 C 300 60, 340 90, 360 80" />
-                </g>
-              </svg>
-              <div className="absolute inset-0">
-                {SOURCE_NODES.map((n) => (
-                  <span
-                    key={n.label}
-                    className="absolute flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] text-[11px] text-white/70 backdrop-blur"
-                    style={{ left: n.x, top: n.y }}
-                  >
-                    {n.label}
-                  </span>
-                ))}
-              </div>
+            <div className="space-y-6 xl:col-span-5">
+              <StrengthChips items={strengths} />
+              <RiskCards items={risks} />
             </div>
           </div>
-        )}
 
-        {/* Right column */}
-        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <EvidenceBreakdown items={breakdown} />
+            <EvidenceTimeline events={timeline} />
+          </div>
+
           {detail.risk && (
-            <div className="glass p-6">
-              <h2 className="mb-4 text-lg font-semibold text-white">Risk Breakdown</h2>
-              <ul className="space-y-2 text-sm text-white/75">
-                <li>Evidence Risk: {detail.risk.evidence_risk.toFixed(1)}</li>
-                <li>Role Gap Risk: {detail.risk.role_gap_risk.toFixed(1)}</li>
-                <li>Credibility Risk: {detail.risk.credibility_risk.toFixed(1)}</li>
-                <li className="font-semibold text-white">Total Risk: {detail.risk.risk_score.toFixed(1)}</li>
-              </ul>
-            </div>
+            <RiskBreakdownPanel
+              evidenceRisk={detail.risk.evidence_risk}
+              roleGapRisk={detail.risk.role_gap_risk}
+              credibilityRisk={detail.risk.credibility_risk}
+              riskScore={detail.risk.risk_score}
+            />
           )}
 
-          {detail.hti && (
-            <div className="glass relative overflow-hidden p-6">
-              <h2 className="mb-3 text-lg font-semibold text-white">Hidden Talent Index</h2>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/45">Visibility: {detail.hti.visibility_score.toFixed(1)}</p>
-                  <p className="text-3xl font-bold gradient-text">HTI: {detail.hti.hti_score.toFixed(1)}</p>
-                </div>
-                <div className="relative h-16 w-16">
-                  <div className="absolute inset-0 rounded-full bg-fuchsia-500/30 blur-lg pulse-glow" />
-                  <div className="relative h-16 w-16 rounded-full border border-fuchsia-300/40 bg-linear-to-br from-violet-500/40 to-fuchsia-500/20" />
-                </div>
-              </div>
-            </div>
+          {evaluation && <MissingEvidenceAccordions gaps={evaluation.interview_focus} />}
+
+          {evaluation && (
+            <AIReasoningCard
+              evaluation={evaluation}
+              strengths={strengths}
+              reservations={reservations}
+              sourceCount={detail.standardized_evidence?.length ?? 0}
+            />
           )}
 
-          {detail.explanation && (
-            <div className="glass p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-white">Explanation</h2>
-                {detail.summary && (
-                  <Link
-                    href={`/candidates/${candidateId}/summary${jobId ? `?job=${jobId}` : ""}`}
-                    className="btn-glow shrink-0 rounded-lg px-4 py-2 text-sm font-medium"
-                  >
-                    📋 Brief Summary →
-                  </Link>
-                )}
+          {evaluation && <NextActionCard recommendation={evaluation.recommendation} />}
+
+          {detail.capability && (
+            <section className="ci-surface ci-surface--compact">
+              <h2 className="ci-title text-base">Capability Profile</h2>
+              <p className="mt-1 text-sm text-[var(--ci-muted)]">
+                Overall capability score: {detail.capability.capability_score.toFixed(0)}
+              </p>
+              <div className="mt-4">
+                <CapabilityRadar capability={detail.capability} />
               </div>
-              <p className="mb-4 text-sm text-white/75">{detail.explanation.reason}</p>
-              {detail.explanation.strengths.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-sm font-medium text-emerald-300">Strengths</p>
-                  <ul className="list-inside list-disc text-sm text-white/70">
-                    {detail.explanation.strengths.map((s) => (
-                      <li key={s}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {detail.explanation.risks.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-amber-300">Risks</p>
-                  <ul className="list-inside list-disc text-sm text-white/70">
-                    {detail.explanation.risks.map((r) => (
-                      <li key={r}>{r}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            </section>
+          )}
+
+          {detail.hti && <HTICard htiScore={detail.hti.hti_score} visibility={detail.hti.visibility_score} />}
+
+          {detail.explanation?.reason && !evaluation?.summary && (
+            <section className="ci-surface ci-surface--compact">
+              <h2 className="ci-title text-base">Analysis Notes</h2>
+              <p className="mt-3 text-sm leading-relaxed text-[var(--ci-muted)]">{detail.explanation.reason}</p>
+            </section>
+          )}
+
+          {detail.summary && (
+            <div className="text-right">
+              <Link
+                href={`/candidates/${candidateId}/summary${jobId ? `?job=${jobId}` : ""}`}
+                className="ci-btn-ghost inline-flex"
+              >
+                View Brief Summary →
+              </Link>
             </div>
           )}
         </div>
-      </div>
-
-      {detail.standardized_evidence && detail.standardized_evidence.length > 0 && (
-        <EvidenceSection evidence={detail.standardized_evidence} />
       )}
 
-      {status === "ready" && evaluation && <DecisionCard evaluation={evaluation} detail={detail} />}
+      {activeTab === "evidence" && detail.standardized_evidence && detail.standardized_evidence.length > 0 && (
+        <div className="ci-evidence-tab">
+          <EvidenceSection evidence={detail.standardized_evidence} />
+        </div>
+      )}
 
-      {status === "ready" && graphId && <TalentGraphSection graphId={graphId} />}
+      {activeTab === "graph" && status === "ready" && graphId && <TalentGraphSection graphId={graphId} />}
+
+      {status === "ready" && evaluation && (
+        <div className="mt-8 [&_.card]:rounded-[24px] [&_.card]:border-[var(--ci-border)] [&_.card]:shadow-[var(--ci-shadow)]">
+          <DecisionCard evaluation={evaluation} detail={detail} />
+        </div>
+      )}
 
       {evaluation && (
         <ReasoningDrawer
