@@ -1,5 +1,6 @@
 "use client";
 
+import { NeuralOrb } from "@/components/ui/NeuralOrb";
 import { loginRecruiter, setStoredRecruiter, setToken } from "@/lib/api";
 import { nextDestination, useNextSuffix } from "@/lib/useRequireAuth";
 import Link from "next/link";
@@ -31,57 +32,69 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6 py-14">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#7c3aed] text-sm font-bold text-white">D</span>
-            <span className="text-xl font-bold text-gray-900">DELULU</span>
-          </Link>
-        </div>
+    <div className="mx-auto max-w-6xl px-6 py-14">
+      <div className="grid items-center gap-10 lg:grid-cols-2">
+        <div>
+          <p className="mb-4 text-sm font-medium uppercase tracking-[0.35em] text-violet-300">
+            Recruiter Sign In
+          </p>
+          <h1 className="text-4xl font-bold text-white">Welcome back</h1>
+          <p className="mt-2 text-white/50">Sign in to your hiring dashboard.</p>
 
-        <div className="card p-8">
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to your hiring dashboard.</p>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+          <form onSubmit={handleSubmit} className="mt-8 max-w-md space-y-6">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Work Email</label>
+              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-white/50">
+                Work Email
+              </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="field w-full px-4 py-2.5 text-sm"
+                className="field w-full px-4 py-3 text-sm"
                 placeholder="you@company.com"
                 required
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
+              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-white/50">
+                Password
+              </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="field w-full px-4 py-2.5 text-sm"
+                className="field w-full px-4 py-3 text-sm"
                 placeholder="Your password"
                 required
               />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full rounded-lg px-6 py-2.5 disabled:opacity-60"
+              className="btn-glow w-full rounded-xl px-6 py-3 font-medium disabled:opacity-60"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
-            <p className="text-center text-sm text-gray-500">
+            <p className="text-sm text-white/50">
               New here?{" "}
-              <Link href={`/signup${nextSuffix}`} className="font-medium text-[#7c3aed] hover:underline">
+              <Link href={`/signup${nextSuffix}`} className="text-violet-300 hover:text-violet-200">
                 Create an account
               </Link>
             </p>
           </form>
+        </div>
+
+        <div className="glass relative hidden overflow-hidden p-10 lg:block">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-violet-600/25 blur-3xl" />
+          <div className="flex justify-center">
+            <div className="floaty">
+              <NeuralOrb size={300} />
+            </div>
+          </div>
+          <p className="relative mt-8 text-center text-lg font-semibold text-white">
+            Evidence-driven hiring intelligence.
+          </p>
         </div>
       </div>
     </div>

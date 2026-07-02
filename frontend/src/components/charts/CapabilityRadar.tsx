@@ -28,8 +28,8 @@ export function CapabilityRadar({ capability }: CapabilityRadarProps) {
     <div className="h-80 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data}>
-          <PolarGrid stroke="rgba(0,0,0,0.08)" />
-          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11, fill: "#6b7280" }} />
+          <PolarGrid stroke="rgba(255,255,255,0.12)" />
+          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11, fill: "rgba(233,233,242,0.55)" }} />
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Radar name="Capability" dataKey="value" stroke="#a855f7" fill="#a855f7" fillOpacity={0.35} />
         </RadarChart>

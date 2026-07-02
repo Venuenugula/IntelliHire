@@ -278,16 +278,3 @@ export interface EvaluationResponse {
   status: "completed" | "failed";
   meta: Record<string, unknown>;
 }
-
-export interface JobDocumentUpload {
-  filename: string;
-  filetype: string;
-  cleaned_text: string;
-  raw_text: string;
-}
-
-export interface JobUploadResponse {
-  document_id: string;
-  document: JobDocumentUpload;
-  message: string;
-}

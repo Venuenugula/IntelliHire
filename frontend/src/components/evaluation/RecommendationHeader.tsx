@@ -31,15 +31,15 @@ function VerdictPill({ recommendation }: { recommendation: RecommendationLevel }
 
 function GeneratingPill() {
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-gray-400">
-      <span className="h-2 w-2 animate-pulse rounded-full bg-violet-500" />
+    <span className="inline-flex items-center gap-2 text-sm text-white/45">
+      <span className="h-2 w-2 animate-pulse rounded-full bg-violet-400" />
       Generating hiring intelligence…
     </span>
   );
 }
 
 function RingSkeleton() {
-  return <div className="h-[84px] w-[84px] animate-pulse rounded-full border border-gray-200 bg-gray-50" />;
+  return <div className="h-[84px] w-[84px] animate-pulse rounded-full border border-white/10 bg-white/[0.03]" />;
 }
 
 export function RecommendationHeader({
@@ -55,13 +55,13 @@ export function RecommendationHeader({
     <div className="mb-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{name}</h1>
+          <h1 className="text-4xl font-bold gradient-text">{name}</h1>
           <div className="mt-3">
             {status === "loading" && <GeneratingPill />}
             {status === "error" && (
-              <span className="inline-flex items-center gap-2 text-sm text-gray-500">
+              <span className="inline-flex items-center gap-2 text-sm text-white/50">
                 Couldn&apos;t generate recommendation.
-                <button onClick={onRetry} className="font-medium text-[#7c3aed] hover:text-violet-700">
+                <button onClick={onRetry} className="font-medium text-violet-300 hover:text-violet-200">
                   Retry
                 </button>
               </span>
@@ -72,7 +72,7 @@ export function RecommendationHeader({
                 {onExplain && (
                   <button
                     onClick={onExplain}
-                    className="btn-secondary rounded-lg px-3 py-1.5 text-xs font-medium"
+                    className="btn-ghost rounded-lg px-3 py-1.5 text-xs font-medium text-white/80"
                   >
                     Why this recommendation?
                   </button>
@@ -102,12 +102,12 @@ export function RecommendationHeader({
       </div>
 
       {ready && evaluation.summary && (
-        <p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-gray-600">
+        <p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-white/70">
           {evaluation.summary}
         </p>
       )}
       {ready && evaluation.recommendation === "insufficient_evidence" && (
-        <p className="mt-2 text-xs text-amber-600">
+        <p className="mt-2 text-xs text-amber-300/80">
           Add more profile links or a résumé to strengthen the evidence base.
         </p>
       )}
