@@ -18,22 +18,22 @@ interface DecisionCardProps {
 }
 
 function riskDescriptor(score: number): string {
-  if (score < 35) return "text-emerald-600";
-  if (score < 60) return "text-amber-600";
-  return "text-red-600";
+  if (score < 35) return "text-emerald-300";
+  if (score < 60) return "text-amber-300";
+  return "text-red-300";
+}
+
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 function Stat({ value, label, className }: { value: string; label: string; className?: string }) {
   return (
     <div className="text-center">
-      <p className={`text-2xl font-bold ${className ?? "text-gray-900"}`}>{value}</p>
-      <p className="text-[11px] text-gray-400">{label}</p>
+      <p className={`text-2xl font-bold ${className ?? "text-white"}`}>{value}</p>
+      <p className="text-[11px] text-white/40">{label}</p>
     </div>
   );
-}
-
-function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 /** Build a plain-text evaluation report for download — recruiter-readable, no backend. */
@@ -114,15 +114,18 @@ export function DecisionCard({ evaluation, detail }: DecisionCardProps) {
 
   return (
     <section className="mt-7">
-      <div className="card relative overflow-hidden p-6">
+      <div className="glass relative overflow-hidden p-6">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-600/20 blur-3xl" />
+
+        {/* header: verdict + status, confidence + risk */}
         <div className="relative mb-5 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-violet-600">Decision</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-violet-300">Decision</p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <span className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-bold ${meta.pill}`}>
                 {meta.label}
               </span>
-              <span className="text-sm text-gray-500">{action.status}</span>
+              <span className="text-sm text-white/50">{action.status}</span>
             </div>
           </div>
           <div className="flex items-center gap-5">
@@ -132,91 +135,96 @@ export function DecisionCard({ evaluation, detail }: DecisionCardProps) {
               sublabel="conf"
               tone={confidenceTone(evaluation.confidence)}
             />
-            <Stat value={(evaluation.score * 100).toFixed(0)} label="score" className="text-violet-600" />
+            <Stat value={(evaluation.score * 100).toFixed(0)} label="score" className="text-violet-300" />
             {risk && <Stat value={risk.risk_score.toFixed(0)} label="risk" className={riskDescriptor(risk.risk_score)} />}
           </div>
         </div>
 
-        <div className="relative mb-6 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Recommended next action</p>
-          <p className="mt-0.5 text-lg font-semibold text-gray-900">{action.action}</p>
+        {/* recommended next action */}
+        <div className="relative mb-6 rounded-xl border border-violet-400/25 bg-violet-500/[0.07] px-4 py-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-white/40">Recommended next action</p>
+          <p className="mt-0.5 text-lg font-semibold text-white">{action.action}</p>
         </div>
 
+        {/* strengths / reservations */}
         <div className="relative grid gap-5 sm:grid-cols-2">
           <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-emerald-600">Strengths</p>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-emerald-300/80">Strengths</p>
             {strengths.length > 0 ? (
-              <BulletList items={strengths} tone="bg-emerald-500" />
+              <BulletList items={strengths} tone="bg-emerald-400" />
             ) : (
-              <p className="text-sm text-gray-400">No standout strengths surfaced.</p>
+              <p className="text-sm text-white/45">No standout strengths surfaced.</p>
             )}
           </div>
           <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-amber-600">Reservations</p>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-amber-300/80">Reservations</p>
             {reservations.length > 0 ? (
-              <BulletList items={reservations} tone="bg-amber-500" />
+              <BulletList items={reservations} tone="bg-amber-400" />
             ) : (
-              <p className="text-sm text-gray-400">No material reservations surfaced.</p>
+              <p className="text-sm text-white/45">No material reservations surfaced.</p>
             )}
           </div>
         </div>
 
+        {/* missing evidence — gap-derived decision risks */}
         <div className="relative mt-6">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">Missing evidence</p>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-white/40">Missing evidence</p>
           {missing.length > 0 ? (
             <div className="space-y-2">
               {missing.map((gap, i) => (
-                <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                  <p className="text-sm font-medium text-gray-900">{gap.topic}</p>
-                  {gap.rationale && <p className="mt-0.5 text-xs text-gray-500">{gap.rationale}</p>}
+                <div key={i} className="rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2">
+                  <p className="text-sm font-medium text-white/85">{gap.topic}</p>
+                  {gap.rationale && <p className="mt-0.5 text-xs text-white/50">{gap.rationale}</p>}
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-white/45">
               No critical evidence gaps — the evidence base sufficiently covers the role&apos;s requirements.
             </p>
           )}
         </div>
 
+        {/* confidence rationale */}
         <div className="relative mt-6 grid gap-5 sm:grid-cols-2">
           <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-emerald-600">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-emerald-300/80">
               Strengthened confidence
             </p>
             {strengthened.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {strengthened.map((s) => (
-                  <span key={s} className="chip px-2.5 py-0.5 text-xs">
+                  <span key={s} className="chip px-2.5 py-0.5 text-xs text-white/70">
                     {s}
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">—</p>
+              <p className="text-sm text-white/40">—</p>
             )}
           </div>
           <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-amber-600">Tempered confidence</p>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-amber-300/80">Tempered confidence</p>
             {tempered.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {tempered.map((t) => (
-                  <span key={t} className="chip px-2.5 py-0.5 text-xs">
+                  <span key={t} className="chip px-2.5 py-0.5 text-xs text-white/70">
                     {t}
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">—</p>
+              <p className="text-sm text-white/40">—</p>
             )}
           </div>
         </div>
 
-        <div className="relative mt-6 flex flex-wrap gap-3 border-t border-gray-100 pt-5">
-          <button onClick={exportReport} className="btn-secondary rounded-lg px-4 py-2 text-sm font-medium">
+        {/* recruiter actions — client-side only (no decision-persistence backend yet) */}
+        <div className="relative mt-6 flex flex-wrap gap-3 border-t border-white/8 pt-5">
+          <button onClick={exportReport} className="btn-ghost rounded-lg px-4 py-2 text-sm font-medium">
             Export report
           </button>
-          <button onClick={copyLink} className="btn-secondary rounded-lg px-4 py-2 text-sm font-medium">
+          <button onClick={copyLink} className="btn-ghost rounded-lg px-4 py-2 text-sm font-medium">
             {copied ? "Copied!" : "Copy link"}
           </button>
         </div>

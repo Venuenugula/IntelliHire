@@ -1,106 +1,33 @@
 "use client";
 
-import { AIFindingsTimeline } from "@/components/dashboard/AIFindingsTimeline";
-import { CandidateEvaluationsTable } from "@/components/dashboard/CandidateEvaluationsTable";
-import { HiringPipeline } from "@/components/dashboard/HiringPipeline";
-import { HiringWorkspaceCard } from "@/components/dashboard/HiringWorkspaceCard";
-import { InsightCard } from "@/components/dashboard/InsightCard";
-import { RecruiterCommandHeader } from "@/components/dashboard/RecruiterCommandHeader";
-import { TodaysTasks } from "@/components/dashboard/TodaysTasks";
-import {
-  buildFindings,
-  buildPipelineStages,
-  buildTasks,
-  confidenceInsight,
-  evaluationRows,
-  evidenceInsight,
-  headerSummary,
-  hiringHealthInsight,
-  pickPrimaryJob,
-  pipelineInsight,
-  type CandidateWithJob,
-} from "@/lib/dashboardInsights";
-import { deleteJob, getRankings, listJobCandidates, listJobs } from "@/lib/api";
-import { useCurrentUser } from "@/lib/useCurrentUser";
+import { deleteJob, listJobs } from "@/lib/api";
 import { useRequireAuth } from "@/lib/useRequireAuth";
-import type { Job, RankingItem } from "@/lib/types";
+import type { Job } from "@/lib/types";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import "@/components/dashboard/dashboard.css";
+import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
   const authed = useRequireAuth();
-  const user = useCurrentUser();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [candidates, setCandidates] = useState<CandidateWithJob[]>([]);
-  const [rankingsByJob, setRankingsByJob] = useState<Record<string, RankingItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authed) return;
-
-    async function load() {
-      try {
-        const jobList = await listJobs();
-        setJobs(jobList);
-
-        const activeJobs = jobList.filter((j) => (j.candidate_count ?? 0) > 0).slice(0, 5);
-        const candidateResults = await Promise.all(
-          activeJobs.map(async (job) => {
-            const list = await listJobCandidates(job.job_id);
-            return list.map((c) => ({ ...c, job_id: job.job_id, job_title: job.title }));
-          }),
-        );
-        const allCandidates = candidateResults.flat();
-        setCandidates(allCandidates);
-
-        const rankingResults = await Promise.all(
-          activeJobs.map(async (job) => {
-            try {
-              const rankings = await getRankings(job.job_id);
-              return [job.job_id, rankings] as const;
-            } catch {
-              return [job.job_id, []] as const;
-            }
-          }),
-        );
-        setRankingsByJob(Object.fromEntries(rankingResults));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load dashboard");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
+    listJobs()
+      .then(setJobs)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load jobs"))
+      .finally(() => setLoading(false));
   }, [authed]);
 
-  const primaryJob = useMemo(() => pickPrimaryJob(jobs), [jobs]);
-  const primaryRankings = primaryJob ? rankingsByJob[primaryJob.job_id] ?? [] : [];
-  const allRankings = useMemo(() => Object.values(rankingsByJob).flat(), [rankingsByJob]);
-
-  const health = hiringHealthInsight(jobs);
-  const evidence = evidenceInsight(candidates);
-  const pipeline = pipelineInsight(allRankings);
-  const confidence = confidenceInsight(allRankings);
-  const summary = headerSummary(jobs, candidates, allRankings);
-
-  const findings = buildFindings(candidates, allRankings);
-  const stages = buildPipelineStages(candidates, allRankings);
-  const tasks = buildTasks(candidates, jobs);
-  const rows = evaluationRows(candidates, allRankings);
-
-  const primaryCandidates = primaryJob
-    ? candidates.filter((c) => c.job_id === primaryJob.job_id)
-    : [];
-  const evidenceComplete = primaryCandidates.filter((c) => c.analyzed).length;
-  const awaitingReview = primaryCandidates.filter((c) => !c.analyzed).length;
-
-  const firstName = user?.company_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
-  const displayName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
-  const reviewHref = primaryJob ? `/jobs/${primaryJob.job_id}/rankings` : "/jobs";
+  if (!authed) {
+    return (
+      <div className="mx-auto flex max-w-6xl items-center justify-center px-6 py-32 text-white/50">
+        Redirecting to sign in…
+      </div>
+    );
+  }
 
   async function handleDelete(job: Job) {
     const count = job.candidate_count ?? 0;
@@ -113,12 +40,6 @@ export default function DashboardPage() {
     try {
       await deleteJob(job.job_id);
       setJobs((prev) => prev.filter((j) => j.job_id !== job.job_id));
-      setCandidates((prev) => prev.filter((c) => c.job_id !== job.job_id));
-      setRankingsByJob((prev) => {
-        const next = { ...prev };
-        delete next[job.job_id];
-        return next;
-      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete job");
     } finally {
@@ -126,131 +47,216 @@ export default function DashboardPage() {
     }
   }
 
-  if (!authed) {
-    return (
-      <div className="flex items-center justify-center p-32 text-gray-400">
-        Redirecting to sign in…
-      </div>
-    );
-  }
+  // Honest, live aggregates from the jobs we already fetched — no fabricated numbers.
+  const candidateCount = jobs.reduce((sum, j) => sum + (j.candidate_count ?? 0), 0);
+  const activeRoles = jobs.filter((j) => (j.candidate_count ?? 0) > 0).length;
+  const recentJobs = [...jobs]
+    .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
+    .slice(0, 4);
 
   return (
-    <div className="rc-dashboard">
-      <RecruiterCommandHeader
-        name={displayName}
-        pipelineMessage={summary.pipelineMsg}
-        confidence={summary.confidence}
-        reviewCount={summary.reviewCount}
-        evidenceUpdates={summary.overnight}
-        reviewHref={reviewHref}
-      />
-
-      {error && (
-        <p className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-      )}
-
-      {/* Insight cards — varied rhythm */}
-      <div className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-12">
-        <div className="xl:col-span-3">
-          <InsightCard
-            label="Hiring Health"
-            status={health.status}
-            value={`${health.score}%`}
-            detail={health.detail}
-            tone={health.score >= 80 ? "success" : health.score >= 50 ? "primary" : "warning"}
-            sparkData={health.spark}
-            tall
-          />
+    <div className="mx-auto max-w-6xl px-6 py-12">
+      <div className="mb-10 flex items-end justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-white">Welcome back</h1>
+          <p className="mt-2 text-white/50">Manage jobs, candidates, and rankings.</p>
         </div>
-        <div className="xl:col-span-3">
-          <InsightCard
-            label="Evidence Coverage"
-            status={evidence.verified > 0 ? `${evidence.verified} verified` : undefined}
-            value={`${evidence.pct}%`}
-            detail={evidence.detail}
-            tone="primary"
-            sparkData={evidence.spark}
-          />
-        </div>
-        <div className="xl:col-span-3">
-          <InsightCard
-            label="Strong Pipeline"
-            status={pipeline.strong > 0 ? `${pipeline.strong} highly recommended` : undefined}
-            value={pipeline.strong > 0 ? String(pipeline.strong) : "—"}
-            detail={pipeline.detail}
-            tone="success"
-            sparkData={pipeline.spark}
-          />
-        </div>
-        <div className="xl:col-span-3">
-          <InsightCard
-            label="Hiring Confidence"
-            status={confidence.label}
-            value={confidence.avg > 0 ? `${confidence.avg}%` : "—"}
-            detail={confidence.detail}
-            tone={confidence.avg >= 75 ? "success" : confidence.avg >= 50 ? "primary" : "warning"}
-            sparkData={confidence.spark}
-            tall
-          />
-        </div>
+        <Link href="/jobs/new" className="btn-glow rounded-xl px-5 py-2.5 text-sm font-medium">
+          + New Job
+        </Link>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left — workflow */}
-        <div className="space-y-6 lg:col-span-8">
-          <AIFindingsTimeline items={findings} />
-          <HiringPipeline stages={stages} jobId={primaryJob?.job_id} />
-          <CandidateEvaluationsTable rows={rows} />
-        </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Jobs column */}
+        <div className="lg:col-span-2">
+          <h2 className="mb-4 text-xl font-semibold text-white">Your Jobs</h2>
 
-        {/* Right — workspace */}
-        <div className="space-y-6 lg:col-span-4">
-          {loading && <p className="text-sm text-[var(--rc-muted)]">Loading workspace…</p>}
+          {loading && <p className="text-white/50">Loading jobs…</p>}
+          {error && <p className="text-red-400">{error}</p>}
 
-          {!loading && primaryJob && (
-            <HiringWorkspaceCard
-              job={primaryJob}
-              evidenceComplete={evidenceComplete}
-              confidence={confidenceInsight(primaryRankings).avg}
-              awaitingReview={awaitingReview}
-              onDelete={() => handleDelete(primaryJob)}
-              deleting={deletingId === primaryJob.job_id}
-            />
-          )}
-
-          {!loading && !primaryJob && (
-            <section className="rc-surface text-center">
-              <p className="text-sm text-[var(--rc-muted)]">No roles yet.</p>
-              <Link href="/jobs/new" className="rc-btn-primary mt-4 inline-flex">
-                Create your first role
+          {!loading && !error && jobs.length === 0 && (
+            <div className="glass border-dashed p-10 text-center">
+              <p className="mb-3 text-white/50">No jobs yet.</p>
+              <Link href="/jobs/new" className="font-medium text-violet-300 hover:underline">
+                Create your first job →
               </Link>
-            </section>
+            </div>
           )}
 
-          <TodaysTasks tasks={tasks} />
+          <div className="space-y-4">
+            {jobs.map((job, i) => (
+              <div key={job.job_id} className={`glass glass-hover p-5 ${i === 0 ? "glow-ring" : ""}`}>
+                <div className="mb-1 flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-white">{job.title}</h3>
+                  <span className="shrink-0 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                    {job.candidate_count ?? 0} applicant{(job.candidate_count ?? 0) === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {job.created_at && (
+                  <p className="mb-4 text-xs text-white/35">
+                    Created {new Date(job.created_at).toLocaleDateString()}
+                  </p>
+                )}
+                <div className="flex items-center gap-4 text-sm">
+                  <Link href={`/jobs/${job.job_id}/candidates`} className="font-medium text-violet-300 hover:underline">
+                    Candidates →
+                  </Link>
+                  <Link href={`/jobs/${job.job_id}/rankings`} className="font-medium text-violet-300 hover:underline">
+                    Rankings →
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(job)}
+                    disabled={deletingId === job.job_id}
+                    className="ml-auto font-medium text-red-400 hover:underline disabled:opacity-50"
+                  >
+                    {deletingId === job.job_id ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          {jobs.length > 1 && (
-            <section className="rc-surface rc-surface--compact">
-              <h3 className="rc-title text-sm">Other Roles</h3>
-              <ul className="mt-4 space-y-2">
-                {jobs
-                  .filter((j) => j.job_id !== primaryJob?.job_id)
-                  .map((job) => (
-                    <li key={job.job_id}>
-                      <Link
-                        href={`/jobs/${job.job_id}`}
-                        className="flex items-center justify-between rounded-xl border border-[var(--rc-border)] px-3 py-2.5 text-sm transition hover:bg-surface-subtle"
-                      >
-                        <span className="font-medium text-[var(--rc-text)]">{job.title}</span>
-                        <span className="text-xs text-[var(--rc-muted)]">{job.candidate_count ?? 0} candidates</span>
-                      </Link>
-                    </li>
-                  ))}
-              </ul>
-            </section>
-          )}
+        {/* Visual column */}
+        <div className="space-y-6">
+          <AnalyticsPreview
+            jobCount={jobs.length}
+            candidateCount={candidateCount}
+            activeRoles={activeRoles}
+          />
+          <div className="glass p-5">
+            <h3 className="mb-3 text-lg font-semibold text-white">Visualizations</h3>
+            <GlobeWire />
+          </div>
+          <RecentRoles jobs={recentJobs} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function AnalyticsPreview({
+  jobCount,
+  candidateCount,
+  activeRoles,
+}: {
+  jobCount: number;
+  candidateCount: number;
+  activeRoles: number;
+}) {
+  const avgPerRole = jobCount > 0 ? Math.round((candidateCount / jobCount) * 10) / 10 : 0;
+  return (
+    <div className="glass relative overflow-hidden p-5">
+      <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-600/30 blur-2xl" />
+      <p className="text-xs uppercase tracking-widest text-white/40">Intelligence dashboard</p>
+      <div className="mt-3 flex items-end gap-2">
+        <span className="text-3xl font-bold text-white">{jobCount}</span>
+        <span className="pb-1 text-xs text-emerald-300">open role{jobCount === 1 ? "" : "s"}</span>
+      </div>
+      <svg viewBox="0 0 240 70" className="mt-3 w-full">
+        <defs>
+          <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M0 55 C 30 30, 50 50, 80 35 S 140 20, 170 38 S 220 25, 240 30 V70 H0 Z" fill="url(#area)" />
+        <path d="M0 55 C 30 30, 50 50, 80 35 S 140 20, 170 38 S 220 25, 240 30" fill="none" stroke="#c4b5fd" strokeWidth="1.5" />
+      </svg>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="rounded-lg bg-white/5 py-2">
+          <p className="font-semibold text-white">{candidateCount}</p>
+          <p className="text-white/40">candidate{candidateCount === 1 ? "" : "s"}</p>
+        </div>
+        <div className="rounded-lg bg-white/5 py-2">
+          <p className="font-semibold text-emerald-300">{activeRoles}</p>
+          <p className="text-white/40">active</p>
+        </div>
+        <div className="rounded-lg bg-white/5 py-2">
+          <p className="font-semibold text-white">{avgPerRole}</p>
+          <p className="text-white/40">avg / role</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GlobeWire() {
+  return (
+    <div className="flex justify-center py-2">
+      <svg viewBox="0 0 200 200" className="h-44 w-44 text-white/30">
+        <circle cx="100" cy="100" r="78" fill="none" stroke="currentColor" strokeWidth="0.6" />
+        {[20, 40, 60].map((r) => (
+          <ellipse key={r} cx="100" cy="100" rx={r} ry="78" fill="none" stroke="currentColor" strokeWidth="0.5" />
+        ))}
+        {[30, 60, 100, 140].map((y) => (
+          <ellipse
+            key={y}
+            cx="100"
+            cy="100"
+            rx="78"
+            ry={Math.max(8, 78 - Math.abs(100 - y))}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.5"
+          />
+        ))}
+        <circle cx="138" cy="70" r="2.5" fill="#a855f7" />
+        <circle cx="70" cy="120" r="2" fill="#22d3ee" />
+        <circle cx="110" cy="150" r="2" fill="#e879f9" />
+      </svg>
+    </div>
+  );
+}
+
+// Relative "time ago" for recent-activity labels. Client-only widget, so using
+// the current time here is safe (no SSR hydration concern).
+function timeAgo(iso?: string): string {
+  if (!iso) return "recently";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "recently";
+  const days = Math.floor((Date.now() - then) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? "a month ago" : `${months} months ago`;
+}
+
+function RecentRoles({ jobs }: { jobs: Job[] }) {
+  return (
+    <div className="glass p-5">
+      <h3 className="mb-4 text-lg font-semibold text-white">Recent Roles</h3>
+      {jobs.length === 0 ? (
+        <p className="text-sm text-white/40">No roles yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {jobs.map((job) => {
+            const count = job.candidate_count ?? 0;
+            return (
+              <Link
+                key={job.job_id}
+                href={`/jobs/${job.job_id}/candidates`}
+                className="flex items-center gap-3 rounded-lg transition hover:bg-white/[0.03]"
+              >
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ${
+                    count > 0 ? "bg-emerald-400/15 text-emerald-300" : "bg-violet-400/15 text-violet-300"
+                  }`}
+                >
+                  {count}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-white">{job.title}</p>
+                  <p className="text-xs text-white/40">
+                    {count} candidate{count === 1 ? "" : "s"} · created {timeAgo(job.created_at)}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -6,11 +6,11 @@
 import type { RecommendationLevel } from "./types";
 
 export const RECOMMENDATION_META: Record<RecommendationLevel, { label: string; pill: string }> = {
-  strong_hire: { label: "Strong Hire", pill: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  hire: { label: "Hire", pill: "border-emerald-200 bg-emerald-50 text-emerald-600" },
-  lean_hire: { label: "Lean Hire", pill: "border-violet-200 bg-violet-50 text-violet-700" },
-  insufficient_evidence: { label: "Insufficient Evidence", pill: "border-gray-200 bg-gray-50 text-gray-500" },
-  no_hire: { label: "No Hire", pill: "border-red-200 bg-red-50 text-red-600" },
+  strong_hire: { label: "Strong Hire", pill: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" },
+  hire: { label: "Hire", pill: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" },
+  lean_hire: { label: "Lean Hire", pill: "border-violet-400/40 bg-violet-500/10 text-violet-200" },
+  insufficient_evidence: { label: "Insufficient Evidence", pill: "border-white/15 bg-white/5 text-white/60" },
+  no_hire: { label: "No Hire", pill: "border-red-400/40 bg-red-400/10 text-red-300" },
 };
 
 /** Confidence gauge tone by band — trust signal, independent of the verdict. */
