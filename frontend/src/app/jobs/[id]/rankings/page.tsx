@@ -1,9 +1,9 @@
 "use client";
 
+import { JobTabs, PageHeader } from "@/components/layout/PageHeader";
 import { RankingTable } from "@/components/ranking/RankingTable";
 import { getRankings } from "@/lib/api";
 import type { RankingItem } from "@/lib/types";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -22,19 +22,16 @@ export default function RankingsPage() {
   }, [jobId]);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-white">Candidate Rankings</h1>
-          <p className="mt-1 text-white/50">Evidence-based ranking with HTI scores</p>
-        </div>
-        <Link href={`/jobs/${jobId}/candidates`} className="text-sm text-violet-300 hover:underline">
-          ← Upload more candidates
-        </Link>
-      </div>
+    <div className="p-8">
+      <PageHeader
+        title="Candidate Rankings"
+        subtitle="Evidence-based ranking with HTI scores"
+      />
 
-      {loading && <p className="text-white/50">Loading rankings…</p>}
-      {error && <p className="text-red-400">{error}</p>}
+      <JobTabs jobId={jobId} active="rankings" />
+
+      {loading && <p className="text-gray-400">Loading rankings…</p>}
+      {error && <p className="text-red-600">{error}</p>}
       {!loading && !error && <RankingTable rankings={rankings} jobId={jobId} />}
     </div>
   );
