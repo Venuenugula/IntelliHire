@@ -44,7 +44,7 @@ export function ScoreRing({
               <stop offset="100%" stopColor={to} />
             </linearGradient>
           </defs>
-          <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} fill="none" />
+          <circle cx={size / 2} cy={size / 2} r={r} stroke="rgba(0,0,0,0.06)" strokeWidth={stroke} fill="none" />
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -59,11 +59,11 @@ export function ScoreRing({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-bold leading-none text-white">{Math.round(value)}</span>
-          {sublabel && <span className="mt-0.5 text-[9px] text-white/45">{sublabel}</span>}
+          <span className="text-lg font-bold leading-none text-gray-900">{Math.round(value)}</span>
+          {sublabel && <span className="mt-0.5 text-[9px] text-gray-400">{sublabel}</span>}
         </div>
       </div>
-      {label && <span className="text-xs text-white/55">{label}</span>}
+      {label && <span className="text-xs text-gray-500">{label}</span>}
     </div>
   );
 }

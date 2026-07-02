@@ -6,6 +6,7 @@ import type {
   CandidateListItem,
   EvaluationResponse,
   Job,
+  JobUploadResponse,
   RankingItem,
   Recruiter,
 } from "./types";
@@ -150,6 +151,15 @@ export async function createJob(title: string, description: string): Promise<Job
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title, description }),
+  });
+}
+
+export async function uploadJobDescription(file: File): Promise<JobUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request<JobUploadResponse>("/jobs/upload", {
+    method: "POST",
+    body: formData,
   });
 }
 
